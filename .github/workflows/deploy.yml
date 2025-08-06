@@ -1,0 +1,47 @@
+name: Deploy Docusaurus to GitHub Pages
+
+on:
+  push:
+    branches:
+      - master
+
+# Permisos para el token GITHUB_TOKEN
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Permite que solo una instancia de esta acción se ejecute a la vez
+concurrency:
+  group: "pages"
+  cancel-in-progress: false
+
+jobs:
+  build_and_deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout del repositorio
+        uses: actions/checkout@v4
+
+      - name: Configurar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22  # Utiliza la versión de Node.js que prefieras
+
+      - name: Instalar dependencias
+        run: npm install
+
+      - name: Construir el sitio web de Docusaurus
+        run: npm run build
+
+      - name: Configurar GitHub Pages
+        uses: actions/configure-pages@v5
+
+      - name: Subir artefacto para GitHub Pages
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: './build'
+
+      - name: Desplegar a GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
