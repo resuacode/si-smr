@@ -6,25 +6,70 @@
 
 /* You can override the default Infima variables here. */
 :root {
-  --ifm-color-primary: #2e8555;
-  --ifm-color-primary-dark: #29784c;
-  --ifm-color-primary-darker: #277148;
-  --ifm-color-primary-darkest: #205d3b;
-  --ifm-color-primary-light: #33925d;
-  --ifm-color-primary-lighter: #359962;
-  --ifm-color-primary-lightest: #3cad6e;
+  --ifm-color-primary: #774b0e;
+  --ifm-color-primary-dark: #6b440d;
+  --ifm-color-primary-darker: #65400c;
+  --ifm-color-primary-darkest: #53350a;
+  --ifm-color-primary-light: #83530f;
+  --ifm-color-primary-lighter: #895610;
+  --ifm-color-primary-lightest: #9b6212;
   --ifm-code-font-size: 95%;
   --docusaurus-highlighted-code-line-bg: rgba(0, 0, 0, 0.1);
 }
 
 /* For readability concerns, you should choose a lighter palette in dark mode. */
 [data-theme='dark'] {
-  --ifm-color-primary: #25c2a0;
-  --ifm-color-primary-dark: #21af90;
-  --ifm-color-primary-darker: #1fa588;
-  --ifm-color-primary-darkest: #1a8870;
-  --ifm-color-primary-light: #29d5b0;
-  --ifm-color-primary-lighter: #32d8b4;
-  --ifm-color-primary-lightest: #4fddbf;
+  --ifm-color-primary: #c19f25;
+  --ifm-color-primary-dark: #ae8f21;
+  --ifm-color-primary-darker: #a4871f;
+  --ifm-color-primary-darkest: #c5a226;
+  --ifm-color-primary-light: #d4af29;
+  --ifm-color-primary-lighter: #d8b331;
+  --ifm-color-primary-lightest: #ddbe4e;
   --docusaurus-highlighted-code-line-bg: rgba(0, 0, 0, 0.3);
+}
+
+/* Personalización del título principal */
+.hero__title {
+  font-size: 2.5rem !important;
+}
+
+
+/* Footer customization */
+.footer__links {
+  margin-bottom: 1rem;
+}
+
+.footer__title {
+  margin-bottom: 0.5rem !important;
+  color: var(--ifm-footer-link-color);
+  font-size: 1rem;
+  font-weight: 600;
+  text-align: center;
+}
+
+/* Social icons hover effects */
+.footer a svg {
+  transition: all 0.3s ease;
+}
+
+.footer a:hover svg {
+  transform: scale(1.2);
+  opacity: 0.8;
+}
+
+/* Center the footer content */
+.footer__links {
+  justify-content: center;
+}
+
+.footer__col {
+  text-align: center;
+}
+
+/* Copyright styling */
+.footer__copyright {
+  text-align: center;
+  margin-top: 1rem;
+  color: var(--ifm-footer-copyright-color);
 }
