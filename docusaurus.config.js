@@ -84,27 +84,27 @@ const config = {
               {
                 type: 'docSidebar',
                 sidebarId: 'tema1Sidebar',
-                label: 'Tema 1: Introducción',
+                label: 'Tema 1: Fundamentos de la Seguridad Informática y Marco Legal',
               },
               {
                 type: 'docSidebar',
                 sidebarId: 'tema2Sidebar',
-                label: 'Tema 2: Amenazas y Vulnerabilidades',
+                label: 'Tema 2: Seguridad Física y Medidas Pasivas',
               },
               {
                 type: 'docSidebar',
                 sidebarId: 'tema3Sidebar',
-                label: 'Tema 3: Criptografía',
+                label: 'Tema 3: Gestión de Datos y Copias de Seguridad',
               },
               {
                 type: 'docSidebar',
                 sidebarId: 'tema4Sidebar',
-                label: 'Tema 4: Seguridad en Redes',
+                label: 'Tema 4: Amenazas Lógicas y Protección Activa',
               },
               {
                 type: 'docSidebar',
                 sidebarId: 'tema5Sidebar',
-                label: 'Tema 5: Seguridad en Sistemas',
+                label: 'Tema 5: Seguridad en Redes y Cortafuegos',
               },
             ],
           },
