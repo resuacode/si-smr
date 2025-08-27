@@ -17,7 +17,8 @@
 const sidebars = {
   // Sidebar principal que incluye introducción general
   mainSidebar: [
-    'intro'
+    'intro',
+    'formato-entregas'
   ],
 
   // Sidebar del Tema 1: Fundamentos de la Seguridad Informática y Marco Legal
