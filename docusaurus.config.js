@@ -48,13 +48,34 @@ const config = {
       ({
         docs: {
           sidebarPath: './sidebars.js',
-          // Please change this to your repo.
         },
         blog: false,
         theme: {
           customCss: './src/css/custom.css',
         },
       }),
+    ],
+  ],
+
+  plugins: [
+    [
+      '@easyops-cn/docusaurus-search-local',
+      {
+        // `hashed` is recommended as long-term-cache of index file is possible.
+        hashed: true,
+        language: ["es", "en"],
+        indexDocs: true,
+        indexBlog: false,
+        indexPages: true,
+        docsRouteBasePath: "/",
+        searchResultLimits: 8,
+        searchResultContextMaxLength: 50,
+        explicitSearchResultPath: true,
+        searchBarPosition: "right",
+        searchBarShortcut: true,
+        searchBarShortcutHint: true,
+        highlightSearchTermsOnTargetPage: true,
+      },
     ],
   ],
 

@@ -1,0 +1,498 @@
+---
+title: Control de Acceso Lógico
+sidebar_position: 3
+---
+
+# Control de Acceso Lógico
+
+La seguridad lógica se refiere a las medidas y prácticas implementadas para proteger los sistemas informáticos y la información que contienen de accesos no autorizados, ataques cibernéticos y otras amenazas. A diferencia de la seguridad física, que se centra en proteger los dispositivos y el entorno físico, la seguridad lógica se enfoca en proteger los datos y los sistemas a través de controles técnicos y administrativos.
+
+En este tema veremos cuestiones relacionadas con la seguridad lógica como la protección de los datos y el software mediante el control de acceso, el cifrado y algunas otras medidas digitales. 
+
+## Control de Acceso
+
+El control de acceso es un componente fundamental de la seguridad lógica. Se refiere a las políticas y prácticas que regulan quién puede acceder a los recursos de un sistema y qué acciones pueden realizar sobre ellos.  
+
+Existen diferentes métodos para implementar el control de acceso, incluyendo:
+
+- **Autenticación**: Verifica la identidad de un usuario o sistema antes de permitir el acceso.
+- **Autorización**: Determina qué recursos puede acceder un usuario autenticado y qué acciones puede realizar.
+- **Auditoría**: Registra y monitorea el acceso a los recursos para detectar y responder a actividades sospechosas.
+
+Los sistemas de control de acceso protegidos con contraseñas suelen ser un punto crítico de la seguridad lógica. 
+
+Estos sistemas son propensos a sufrir ataques como:
+
+- **Fuerza Bruta**: Intentos repetidos de adivinar contraseñas.
+- **Ataque de diccionario**: Uso de una lista de palabras comunes para adivinar contraseñas.
+
+Una forma sencilla pero efectiva de proteger al sistema de este tipo de ataques concretos es establecer un número máximo de intentos de inicio de sesión fallidos, tras los cuales se bloqueará temporalmente la cuenta.
+
+Para evitar este tipo de problemas y otros parecidos, hablaremos a continuación del establecimiento de políticas de contraseñas.
+
+### Políticas de contraseñas
+
+Las contraseñas son la primera línea de defensa para la autenticación de usuarios. Una política sólida es crucial para evitar accesos no autorizados.
+
+Una política de contraseñas efectiva debe incluir:
+
+- **Requisitos de Complejidad**: Las contraseñas deben ser lo suficientemente complejas como para resistir ataques de fuerza bruta. Esto puede incluir la combinación de letras mayúsculas y minúsculas, números y caracteres especiales.
+- **Longitud Mínima**: Se debe establecer una longitud mínima para las contraseñas, generalmente de al menos 8 a 12 caracteres.
+- **Cambio Periódico de Contraseñas**: Las contraseñas deben cambiarse regularmente para reducir el riesgo de acceso no autorizado.
+- **Bloqueo de Cuenta**: Después de un número determinado de intentos fallidos de inicio de sesión, la cuenta debe bloquearse temporalmente.
+- **Educación del Usuario**: Los usuarios deben ser capacitados sobre la importancia de las contraseñas seguras y cómo proteger sus credenciales.
+- **Frases de Contraseña**: Fomentar el uso de frases de contraseña en lugar de palabras individuales, ya que son más fáciles de recordar y más seguras.
+- **No reutilizar Contraseñas**: Los usuarios deben evitar el uso de la misma contraseña en múltiples cuentas o sistemas.
+- **Autenticación Multifactor (MFA/2FA)**: Implementar un segundo factor de autenticación, como un código enviado al teléfono móvil o una aplicación de autenticación, para aumentar la seguridad.
+- **Auditoría de contraseñas**: Realizar auditorías periódicas de las contraseñas para identificar posibles debilidades y garantizar el cumplimiento de las políticas establecidas. 
+
+:::tip Gestores de contraseñas
+Actualmente existen herramientas como *KeePass*, *LastPass* y *1Password* que pueden ayudar a los usuarios a gestionar sus contraseñas de manera segura.    
+
+Estas herramientas almacenan las contraseñas de forma cifrada y pueden generar contraseñas seguras automáticamente, lo que facilita la implementación de políticas de contraseñas efectivas.
+:::
+
+:::info Otras herramientas para proteger nuestras contraseñas como Google Authenticator
+Google Authenticator es una aplicación que genera códigos de autenticación de un solo uso para la autenticación multifactor. Funciona sin conexión a Internet y es compatible con muchos servicios en línea.
+:::
+
+### Configuración de contraseñas seguras a nivel de dominio
+
+Las **directivas de cuentas** permiten configurar políticas de seguridad para las cuentas de usuario en un dominio. Esto incluye la gestión de contraseñas, bloqueo de cuentas y auditoría de eventos de seguridad.
+
+A continuación, veremos como implementar estas directivas, paso a paso, tanto en sistemas Windows como en Linux.
+
+#### Configuración de contraseñas seguras en Windows
+
+1. **Acceder a la Directiva de Seguridad Local**:
+   - Abrir el *Editor de directivas de seguridad local* (`secpol.msc`).
+   - Navegar a `Directivas de cuenta` > `Directiva de contraseñas`.
+
+2. **Configurar la Política de Contraseñas**:
+   - Establecer la longitud mínima de la contraseña.
+   - Habilitar la complejidad de la contraseña.
+   - Configurar la caducidad de la contraseña.
+
+:::tip Recomendación
+Es recomendable establecer una caducidad de contraseña de 60 a 90 días y notificar a los usuarios con anticipación sobre el cambio.
+
+También podemos hacer que un usuario no pueda reutilizar sus últimas contraseñas (por ejemplo, las últimas 5).
+:::
+
+3. **Configurar el Bloqueo de Cuenta**:
+   - Navegar a `Directivas de cuenta` > `Directiva de bloqueo de cuenta`.
+   - Establecer el umbral de bloqueo y la duración.
+
+4. **Habilitar la Auditoría de Seguridad**:
+   - Navegar a `Directivas locales` > `Opciones de seguridad`.
+   - Habilitar la auditoría de inicio de sesión y de acceso a objetos.
+
+Todas estas acciones podemos llevarlas a cabo a nivel local o a través de directivas de grupo en un entorno de dominio.
+
+Para implementar estas directivas en un entorno de dominio, se recomienda utilizar la *Consola de Administración de Directivas de Grupo* (`gpmc.msc`). A través de esta consola, podemos crear y vincular objetos de directiva de grupo (GPO) a unidades organizativas (OU) específicas, lo que nos permite aplicar configuraciones de seguridad de manera centralizada.
+
+##### Active Directory
+
+*Active Directory* es un servicio de directorio desarrollado por Microsoft para gestionar y organizar recursos en una red. Proporciona una estructura jerárquica para almacenar información sobre usuarios, grupos, equipos y otros objetos de red.
+
+Para trabajar con Active Directory, se utilizan herramientas como la *Consola de Usuarios y Equipos de Active Directory* (`dsa.msc`) y la *Consola de Administración de Active Directory* (`adsi.msc`). 
+
+Entre las funcionalidades que ofrecen estas herramientas se incluyen la gestión de usuarios y grupos, la configuración de políticas de seguridad y la auditoría de eventos. 
+
+Por ejemplo, si quisieramos aplicar una política de contraseñas en Active Directory, podríamos hacerlo a través de la *Consola de Administración de Directivas de Grupo* (`gpmc.msc`), creando una nueva GPO y configurando los ajustes de seguridad necesarios. 
+
+El paso a paso sería:
+
+1. Abrir la *Consola de Administración de Directivas de Grupo* (`gpmc.msc`).
+2. Crear una nueva GPO y vincularla a la OU deseada.
+3. Editar la GPO y navegar a `Configuración de Windows` > `Configuración de seguridad` > `Directivas de cuenta` > `Directiva de contraseñas`.
+4. Configurar los parámetros de la política de contraseñas según las necesidades de la organización.
+5. Aplicar la GPO y realizar pruebas para asegurarse de que la política se aplica correctamente.
+
+##### Recuperación de contraseñas en Windows
+
+En caso de que un usuario olvide su contraseña, existen varios métodos para recuperarla:
+
+1. **Restablecimiento de contraseña a través de otro usuario**: Si hay otro usuario con privilegios administrativos, puede restablecer la contraseña del usuario afectado desde la *Consola de Usuarios y Equipos de Active Directory* (`dsa.msc`).
+
+2. **Uso de un disco de restablecimiento de contraseña**: Si el usuario creó un disco de restablecimiento de contraseña antes de olvidar la contraseña, puede utilizarlo para restablecerla.
+
+3. **Modo seguro**: En algunos casos, iniciar el sistema en *Modo seguro* puede permitir el acceso con una cuenta de administrador y, desde allí, restablecer la contraseña.    
+
+Existen también aplicaciones de terceros que pueden ayudar en la recuperación de contraseñas, pero su uso debe ser evaluado cuidadosamente debido a posibles riesgos de seguridad.
+
+#### Configuración de contraseñas seguras en Linux
+
+El control sobre la complejidad y el cifrado de las contraseñas en sistemas GNU/Linux se puede gestionar a través de varios archivos y comandos. 
+
+Es habitual hacerlo mediante el servicio PAM (Pluggable Authentication Modules), que proporciona un marco flexible para la autenticación de usuarios.
+
+El módulo `pam_cracklib.so` se utiliza para gestionar la complejidad de las contraseñas. Para instalarlo debemos ejecutar el siguiente comando:
+
+```bash
+sudo apt-get install libpam-cracklib
+```
+
+Uno de los comandos de asignación de contraseñas a usuarios en linux suele ser `passwd` y su archivo de configuración asociado es `/etc/pam.d/common-password`. 
+
+Este archivo utiliza la siguiente estructura:
+
+```
+password required pam_unix.so nullok obscure min=4 max=8 md5
+```
+
+Como podemos observar, este archivo define los requisitos de la contraseña, como la longitud mínima y máxima, el uso de caracteres especiales y el algoritmo de cifrado (en este caso, MD5).
+
+A continuación, se describen los pasos para configurar políticas de contraseñas seguras en un sistema Linux.
+
+1. **Modificar el archivo de configuración de PAM**:
+   - Editar el archivo `/etc/pam.d/common-password` y agregar o modificar las siguientes líneas:
+     ```
+     password requisite pam_pwquality.so retry=3
+     ```
+   - Esto habilita la complejidad de la contraseña y permite hasta 3 intentos.
+
+2. **Configurar la política de contraseñas**:
+   - Editar el archivo `/etc/login.defs` y ajustar los siguientes parámetros:
+     ```
+     PASS_MAX_DAYS   90
+     PASS_MIN_DAYS   10
+     PASS_MIN_LEN    12
+     ```
+   - Esto establece que las contraseñas deben cambiarse cada 90 días, no pueden ser cambiadas en menos de 10 días y deben tener al menos 12 caracteres.
+
+3. **Habilitar el cifrado de contraseñas**:
+   - Asegurarse de que el sistema esté utilizando un algoritmo de cifrado fuerte, como SHA-512. Esto se puede verificar en el archivo `/etc/default/login`:
+     ```
+     ENCRYPT_METHOD SHA512
+     ```
+
+4. **Configurar el bloqueo de cuenta**:
+   - Editar el archivo `/etc/security/faillock.conf` y ajustar los siguientes parámetros:
+     ```
+     [Service]
+     Success=1
+     Failure=3
+     BlockTime=600
+     ```
+   - Esto establece que después de 3 intentos fallidos, la cuenta se bloqueará durante 10 minutos.
+   - Para aplicar estos cambios, es necesario reiniciar el servicio de PAM o el sistema.
+
+Podemos visualizar los accesos al sistema y otros sucesos del sistema o **logs**, estos se guardan en archivos ubicados en el directorio `/var/log/`. 
+
+Aunque muchos programas manejan sus propios logs y los guardan en `/var/log/<programa>`. Con respecto al acceso e identificación de usuarios encontramos:
+
+    - `/var/log/auth.log`: Registra eventos relacionados con la autenticación, como inicios de sesión exitosos y fallidos, cambios de contraseña y otros eventos de seguridad.
+
+##### Recuperación de contraseñas en Linux
+
+El archivo que controla usuarios y sus contraseñas encriptadas es `/etc/shadow`. Este archivo tan solo es visible para el usuario root y contiene información sobre las contraseñas de los usuarios del sistema.
+
+La estructura de este archivo es un listado con una línea por cada usuario en la que la segunda columna separada por dos puntos (`:`) contiene la contraseña encriptada.
+
+Arrancando el sistema desde una distribución *Backtrack* se puede acceder a este archivo y, utilizando herramientas como `John the Ripper`, intentar recuperar las contraseñas. 
+
+Podemos efectuar distintos tipos de ataques contra este archivo indicandole la ruta para descubrir contraseñas encirptadas, por ejemplo:
+
+```
+john -single /ruta/a/archivo_shadow
+``` 
+
+Este comando intentará descubrir las contraseñas utilizando un ataque de diccionario.
+
+El programa tiene las siguientes opciones habituales:
+
+- `--wordlist`: Especifica un archivo de lista de palabras para usar en ataques de diccionario.
+- `--rules`: Aplica reglas de modificación de palabras a la lista de palabras.
+- `--incremental`: Utiliza un ataque de fuerza bruta incremental.
+
+##### Modificación de contraseñas en Linux
+
+Accediendo al fichero `/etc/shadow` como usuario root, se pueden modificar las contraseñas de los usuarios. Para ello, se puede utilizar el comando `passwd` seguido del nombre de usuario. Por ejemplo:
+
+```
+passwd usuario
+```
+
+Esto solicitará la nueva contraseña para el usuario especificado.
+
+### Control de acceso a la BIOS y Gestor de arranque
+
+La BIOS (Basic Input/Output System) es un firmware que se ejecuta al encender el ordenador y es responsable de iniciar el hardware y cargar el sistema operativo. Proteger el acceso a la BIOS es crucial para evitar cambios no autorizados en la configuración del sistema, lo que podría comprometer la seguridad del equipo.
+
+El gestor de arranque (bootloader) es el software responsable de cargar el sistema operativo en la memoria. Al igual que la BIOS, proteger el acceso al gestor de arranque es fundamental para evitar que usuarios no autorizados modifiquen la configuración de arranque del sistema o accedan a datos sensibles.
+
+Para proteger el acceso a la BIOS y al gestor de arranque, se pueden implementar las siguientes medidas:
+
+1. **Establecer una contraseña de BIOS**: Configurar una contraseña para acceder a la BIOS impide que usuarios no autorizados realicen cambios en la configuración del hardware.
+
+2. **Bloquear el acceso al gestor de arranque**: Configurar una contraseña para el gestor de arranque evita que se modifique la secuencia de arranque o se acceda a sistemas operativos no autorizados.
+
+3. **Deshabilitar el arranque desde dispositivos extraíbles**: Configurar la BIOS para que no permita el arranque desde USB o CD/DVD reduce el riesgo de ataques físicos.
+
+Dependiendo de la versión y la marca de la BIOS podemos configurar la seguridad de diferentes formas. Estableceremos una clasificación sobre los niveles de seguridad que suele tener:
+
+- **Seguridad del sistema (system)**: en cada arranque la máquina nos pedirá una contraseña que se ha condigurado en el BIOS previamente. En caso de no introducirla o introducirla de forma errónea, el sistema no arrancará.
+- **Seguridad de configuración de la BIOS (setup)**: en este caso, la contraseña se pedirá al intentar acceder a la configuración de la BIOS. Si no se introduce o se introduce de forma errónea, no se podrá acceder a la configuración.
+
+#### Contraseña en el gestor de arranque (con Grub)
+
+Cuando en un mismo equipo trabajamos con varios sistemas operativos, es recomendable proteger el gestor de arranque para evitar que usuarios no autorizados modifiquen la configuración de arranque o accedan a sistemas no autorizados. En el caso de Grub, se puede establecer una contraseña para proteger el acceso a su menú de configuración.
+
+Para establecer una contraseña en Grub, se deben seguir los siguientes pasos:
+
+1. **Generar una contraseña encriptada**: Utilizar la herramienta `grub-mkpasswd-pbkdf2` para generar una contraseña encriptada. Este comando solicitará la contraseña y generará una salida encriptada que se debe copiar.
+
+2. **Editar el archivo de configuración de Grub**: Abrir el archivo `/etc/grub.d/40_custom` (o el archivo de configuración correspondiente) y agregar las siguientes líneas, reemplazando `GRUB_PASSWORD` con la contraseña encriptada generada en el paso anterior:
+
+   ```
+   set superusers="usuario"
+   password_pbkdf2 usuario GRUB_PASSWORD
+   ```
+
+3. **Actualizar la configuración de Grub**: Ejecutar el comando `update-grub` para aplicar los cambios realizados en la configuración.
+
+### Sistemas Biométricos de identificación
+
+Como ya hemos visto anteriormente, los métodos de autenticación que utilizan características físicas o de comportamiento únicas de los individuos para verificar su identidad se conocen como sistemas biométricos de identificación. Estos sistemas ofrecen una forma más segura y conveniente de autenticación en comparación con los métodos tradicionales basados en contraseñas o tarjetas.
+
+Existen diferentes tipos de sistemas biométricos, pero se pueden clasificar en dos grandes grupos:
+
+- Físicos: utilizan características físicas del individuo.
+    - Huellas dactilares.
+    - Reconocimiento facial.
+    - Iris.
+    - Voz.
+    - Geometría de la mano.
+- De comportamiento: analizan patrones de comportamiento del individuo.
+    - Dinámica de tecleo.
+    - Comportamiento de navegación.
+
+Las métricas clave para evaluar la efectividad de los sistemas biométricos incluyen:
+
+- Tasa de falsos aceptados (FAR): la frecuencia con la que un sistema biométrico acepta incorrectamente a un usuario no autorizado.
+- Tasa de falsos rechazados (FRR): la frecuencia con la que un sistema biométrico rechaza a un usuario autorizado.
+- Tasa de error de cruce (CER): la frecuencia con la que un sistema biométrico confunde a un usuario autorizado con uno no autorizado.
+- Tiempo de verificación: el tiempo que tarda el sistema en verificar la identidad de un usuario.
+- Aceptación del usuario: la disposición de los usuarios a utilizar sistemas biométricos en lugar de métodos de autenticación tradicionales.
+
+Las principales ventajas de usar un sistema biométrico por encima de otros tipos de sistemas de identificación son la conveniencia y la mayor seguridad que las contraseñas simples (con un uso correcto). 
+
+Sin embargo, también conllevan una serie de desventajas como pueden ser los costes, un rendimiento variable en algunos casos, problemas de privacidad, no se pueden "cambiar" los datos biométricos si se compromenten (aunque se pueden revocar las credenciales).
+
+Para implementar sistemas biométricos se pueden usar dispositivos como escáneres de huellas dactilares, cámaras de reconocimiento facial, lectores de iris, micrófonos para reconocimiento de voz y dispositivos de captura de geometría de la mano.
+
+#### Sistemas biométricos de identificación en los Sistemas Operativos modernos
+
+A día de hoy, muchos sistemas operativos modernos incluyen soporte para sistemas biométricos de identificación. A continuación, se describen algunos ejemplos:
+
+- Windows Hello: permite el inicio de sesión mediante reconocimiento facial o de huellas dactilares.
+- macOS: incluye Touch ID para autenticación mediante huellas dactilares y Face ID en dispositivos compatibles.
+- Linux: existen diversas soluciones de autenticación biométrica, como fprint para huellas dactilares y reconocimiento facial.
+
+Pero dónde antes se han visto implementados estos sistemas ha sido en dispositivos móviles, donde el reconocimiento facial y las huellas dactilares se han convertido en métodos comunes de autenticación.
+
+## Listas de Control de Acceso
+
+La definición de cuentas de usuario y asignación de perfiles determinados, grupos o roles, así como los privilegios sobre los objetos del sistema es uno de los aspectos fundamentales de la seguridad. 
+
+Una de las tareas del administrador de sistemas es gestionar estas cuentas y sus permisos de manera adecuada. Este proceso lleva generalmente los siguientes cuatro pasos:
+
+1. Definición de puestos: separación de funciones y otorgar los mínimos permisos de acceso requeridos por cada puesto para la ejecución de sus tareas asignadas.
+2. Determinar la sensibilidad del puesto: determinar si una función requiere permisos críticos que permitan alterar procesos, visualizar información confidencial o cualquier otra actividad crítica.
+3. Elegir a los usuarios adecuados para cada puesto: requiere considerar los requerimientos de experiencia y conocimientos técnicos necesarios para cada puesto.
+4. Formación inicial y continua de los usuarios: deben conocerse las pautas de organización, la responsabilidad en cuanto a la seguridad y lo que debe hacer cada usuario. Debe estar orientada a incrementar la conciencia y necesidad de protección de los recursos.
+
+La definición de los permisos de acceso requiere determinar cuál será el nivel de seguridad necesario sobre los datos, por lo que es imprescindible clasificar la información, determinando el riesgo que produce su exposición.
+
+Para empezar la implementación conviene comenzar definiendo las medidas de sguridad sobre la información más sensible o las aplicaciones más críticas y avanzar de acuerdo a un orden de prioridad descendiente.
+
+Las listas de control de acceso (ACL), en inglés *Access Control Lists*, son un componente fundamental de la seguridad lógica. Se utilizan para definir quién tiene permiso para acceder a ciertos recursos dentro de un sistema informático. Las ACL pueden aplicarse a archivos, directorios, dispositivos y otros objetos del sistema.
+
+Podemos definir una ACL como un conjunto de reglas que determinan qué usuarios o grupos tienen permiso para acceder a un recurso (fichero, carpeta, base de datos, servicio de red, etc.) y qué tipo de operaciones pueden realizar (lectura, escritura, modificación o ejecución). 
+
+Existen dos tipos principales de ACL:
+
+1. **ACL Discrecional (DACL)**: Permite a los propietarios de los recursos definir quién puede acceder a ellos y qué tipo de acceso se les concede (lectura, escritura, ejecución, etc.).
+
+2. **ACL de Sistema (SACL)**: Se utiliza para auditar el acceso a los recursos. Permite registrar intentos de acceso no autorizados o exitosos, lo que ayuda a identificar posibles amenazas o violaciones de seguridad.
+
+Las ACL son una herramienta poderosa para implementar el principio de menor privilegio, asegurando que los usuarios solo tengan acceso a los recursos necesarios para realizar su trabajo.
+
+### Modelos de Control de Acceso
+Las ACL son una parte esencial de los modelos de control de acceso, que son enfoques estructurados para gestionar y restringir el acceso a los recursos en un sistema informático.
+
+Podemos también ver diferentes modelos de control de acceso que se utilizan para definir cómo se aplican las ACL:
+
+1. **DAC (Discretionary Access Control)**: En este modelo, los propietarios de los recursos tienen la capacidad de definir quién puede acceder a sus recursos y qué tipo de acceso se les concede. Esto se implementa a través de listas de control de acceso (ACL) que especifican los permisos para cada usuario o grupo.
+
+2. **MAC (Mandatory Access Control)**: En este modelo, el acceso a los recursos está determinado por políticas de seguridad establecidas por el sistema, y no puede ser modificado por los propietarios de los recursos. Los usuarios y grupos se clasifican en diferentes niveles de seguridad, y el acceso se concede o deniega en función de estas clasificaciones.
+
+3. **RBAC (Role-Based Access Control)**: En este modelo, los permisos se asignan a roles en lugar de a usuarios individuales. Los usuarios se agrupan en roles, y se les concede acceso a los recursos en función de su rol. Esto simplifica la gestión de permisos, especialmente en entornos con un gran número de usuarios.
+
+### Implementación de ACLs en Sistemas Operativos
+
+Podemos encontrar la implementación de ACLs en varios sistemas operativos modernos, que utilizan diferentes enfoques para gestionar el acceso a los recursos. A continuación, se presentan algunos ejemplos:
+
+1. **Windows**: En sistemas operativos Windows, las ACLs se implementan a través de la seguridad de archivos NTFS. 
+    - Cada archivo y carpeta puede tener una DACL que especifica los permisos para los usuarios y grupos. 
+    - Los administradores pueden modificar estas listas utilizando herramientas como el Explorador de Windows o la línea de comandos.
+
+2. **Linux**: En sistemas Linux, las ACLs se pueden implementar utilizando el sistema de archivos ext3/ext4. 
+    - A través de permisos tradicionales *rwx* y permisos extendidos, los administradores pueden definir quién puede leer, escribir o ejecutar archivos y directorios.
+    - Los administradores pueden utilizar el comando `setfacl` para establecer ACLs en archivos y directorios, y `getfacl` para ver las ACLs existentes. Esto permite un control más granular sobre los permisos en comparación con el modelo tradicional de propietario/grupo/otros.
+
+3. **macOS**: Al igual que Linux, macOS también admite ACLs a través de su sistema de archivos. 
+    - Los administradores pueden utilizar el comando `chmod` con la opción `+a` para agregar entradas de ACL a archivos y directorios, lo que permite un control de acceso más detallado.
+
+En resumen, la implementación de ACLs en sistemas operativos es una práctica común que permite a los administradores gestionar el acceso a los recursos de manera efectiva y segura.
+
+Profundicemos un poco más a nivel práctico en como se gestiona esto tanto en sistemas Linux como en Windows.
+
+#### Administración de ACLs en Linux
+
+Como ya seguro conocéis, en sistemas linux existe el comando `chmod` para gestionar los permisos de archivos y directorios. Este comando permite cambiar los permisos de acceso de los archivos y directorios de manera sencilla. 
+
+Como breve repaso de los permisos en Linux:
+
+- `r`: Permiso de lectura.
+- `w`: Permiso de escritura.
+- `x`: Permiso de ejecución.
+
+Con `chmod`, podemos establecer permisos para el propietario del archivo, el grupo y otros usuarios. Por ejemplo:
+
+```bash
+chmod u+rw,g+r,o-r documento.txt
+```
+
+También podemos hacerlo utilizando números:
+
+```bash
+chmod 664 documento.txt
+```
+
+Estos números se corresponden con los permisos de la siguiente manera:
+
+- El primer dígito representa los permisos del propietario.
+- El segundo dígito representa los permisos del grupo.
+- El tercer dígito representa los permisos de otros usuarios.
+
+Están en formato octal (base 8), donde cada dígito puede ser un número del 0 al 7. Dependiendo del valor estamos asignando permisos de lectura, escritura o ejecución.
+
+Por ejemplo, `chmod 764 documento.txt` asigna:
+
+- Lectura, escritura y ejecución para el propietario.
+- Lectura y escritura para el grupo.
+- Solo lectura para otros usuarios.
+
+Ya que el 764 en binario es `111 110 100`, podemos ver cómo se asignan los permisos:
+
+- El propietario tiene permisos de lectura (r), escritura (w) y ejecución (x) -> `111`
+- El grupo tiene permisos de lectura (r) y escritura (w) -> `110`
+- Otros usuarios tienen solo permiso de lectura (r) -> `100`
+
+En Linux también podemos modificar el dueño de un archivo a través del comando `chown`.
+
+Lo haríamos de la siguiente forma:
+
+```bash
+chown nuevo_dueño:nuevo_grupo documento.txt
+```
+
+También si un usuario pertenece a varios grupos puede cambiar el grupo de uno de sus archivos o directorios a los que pertenezca con el comando `chgrp`.    
+
+```bash
+chgrp nuevo_grupo documento.txt
+```
+
+Por último veremos como manejar las ACLs en Linux. Para ello, utilizamos los comandos `setfacl` y `getfacl`.
+
+:::info Ejemplo de ACL en Linux
+Supongamos que tenemos un archivo llamado `documento.txt` y queremos establecer una ACL para permitir que el usuario `juan` tenga permisos de lectura y escritura, mientras que el usuario `maria` solo tenga permisos de lectura. Podemos hacerlo con los siguientes comandos:
+
+```bash
+setfacl -m u:juan:rw documento.txt
+setfacl -m u:maria:r documento.txt
+```
+
+Para ver las ACLs establecidas en el archivo, podemos utilizar el comando:
+
+```bash
+getfacl documento.txt
+```
+:::
+
+Como podemos observar en el ejemplo, hemos establecido permisos específicos para cada usuario en el archivo `documento.txt`, lo que nos permite un control más granular sobre quién puede acceder y modificar el archivo.   
+
+El comando `getfacl` nos permite ver las ACLs establecidas en el archivo. Y con el comando `setfacl` podemos modificar las ACLs existentes. 
+
+Las opciones habituales del comando `setfacl` son las siguientes:
+
+- `-m`: Modificar una ACL existente.
+- `-x`: Eliminar una entrada de ACL.
+- `-b`: Eliminar todas las entradas de ACL.
+
+Las opciones habituales del comando `getfacl` son:
+
+- `-s`: Mostrar solo las entradas de ACL.
+- `-n`: Mostrar los nombres de los usuarios y grupos en lugar de sus IDs numéricos.
+
+
+#### Administración de ACLs en Windows
+
+En Windows, la administración de ACLs se realiza principalmente a través de la interfaz gráfica, aunque también se pueden utilizar comandos de PowerShell para gestionar las ACLs de manera más avanzada.
+
+:::info Ejemplo de ACL en Windows
+Supongamos que tenemos un archivo llamado `documento.txt` y queremos establecer una ACL para permitir que el usuario `juan` tenga permisos de lectura y escritura, mientras que el usuario `maria` solo tenga permisos de lectura. Podemos hacerlo con los siguientes pasos:
+
+```powershell
+Set-Acl -Path "documento.txt" -AclObject $acl
+```
+
+1. Hacemos clic derecho en el archivo `documento.txt` y seleccionamos "Propiedades".
+2. Vamos a la pestaña "Seguridad" y hacemos clic en "Editar".
+3. Agregamos a los usuarios `juan` y `maria` y les asignamos los permisos correspondientes.
+
+Para ver las ACLs establecidas en el archivo, podemos utilizar el comando:
+
+```powershell
+Get-Acl documento.txt
+```
+:::
+
+En el ejemplo anterior, hemos utilizado la interfaz gráfica de Windows para establecer permisos específicos para cada usuario en el archivo `documento.txt`.    
+
+El comando `Get-Acl` nos permite ver las ACLs establecidas en el archivo. Y con el comando `Set-Acl` podemos modificar las ACLs existentes.
+
+```powershell
+Set-Acl documento.txt
+```
+
+Los comandos tiene las siguientes opciones habituales:
+
+- `Set-Acl`: Establece una ACL en un archivo o directorio.
+    - `-Path`: Especifica la ruta del archivo o directorio.
+    - `-AclObject`: Especifica el objeto ACL que se va a establecer.
+- `Get-Acl`: Obtiene la ACL de un archivo o directorio.
+    - `-Path`: Especifica la ruta del archivo o directorio.
+    - `-AclObject`: Especifica el objeto ACL que se va a obtener.
+
+También en Sistemas Windows vía línea de comandos podemos hacer uso del comando `icacls`.
+
+```powershell
+icacls documento.txt
+```
+
+Este comando sirve para mostrar las ACLs de un archivo o directorio. Sus principales opciones son:
+
+- `/grant`: Otorga permisos a un usuario o grupo.
+- `/remove`: Elimina permisos de un usuario o grupo.
+- `/inheritance`: Configura la herencia de permisos.
+
+Antiguamente también podíamos usar el comando `cacls`.
+
+```powershell
+cacls documento.txt
+```
+
+Cuyo uso se desaconseja en favor de `icacls`, ya que `cacls` no es compatible con las ACLs de Windows Vista y versiones posteriores.
