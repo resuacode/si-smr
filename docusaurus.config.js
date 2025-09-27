@@ -130,6 +130,11 @@ const config = {
             ],
           },
           {
+            type: 'docSidebar',
+            sidebarId: 'laboratorioSidebar',
+            label: 'Laboratorio',
+          },
+          {
             href: 'https://github.com/resuacode/si-smr',
             label: 'GitHub',
             position: 'right',
