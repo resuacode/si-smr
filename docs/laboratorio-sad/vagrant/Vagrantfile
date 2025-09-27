@@ -1,0 +1,344 @@
+# -*- mode: ruby -*-
+# vi: set ft=ruby :
+
+# Configuración del laboratorio SAD con 5 VMs
+Vagrant.configure("2") do |config|
+  
+  # Configuración global
+  config.vm.box_check_update = false
+  config.vbguest.auto_update = false if Vagrant.has_plugin?("vagrant-vbguest")
+  
+  # Red privada para el laboratorio (optimizada)
+  NETWORK_BASE = "192.168.56"
+  
+  # ===========================================
+  # VM 1: Ubuntu Server (Infraestructura base)
+  # ===========================================
+  config.vm.define "ubuntu-server" do |ubuntu|
+    ubuntu.vm.box = "ubuntu/jammy64"
+    ubuntu.vm.hostname = "ubuntu-server"
+    ubuntu.vm.network "private_network", ip: "#{NETWORK_BASE}.10"
+    
+    # Puertos forwarded para acceso desde host
+    ubuntu.vm.network "forwarded_port", guest: 22, host: 2210
+    ubuntu.vm.network "forwarded_port", guest: 80, host: 8010
+    ubuntu.vm.network "forwarded_port", guest: 443, host: 8443
+    
+    ubuntu.vm.provider "virtualbox" do |vb|
+      vb.name = "SAD-Ubuntu-Server"
+      vb.memory = "1536"  # Reducido de 2048
+      vb.cpus = 1         # Reducido de 2
+      vb.gui = false
+      
+      # Optimizaciones de VirtualBox para menor uso de recursos
+      vb.customize ["modifyvm", :id, "--vram", "12"]
+      vb.customize ["modifyvm", :id, "--accelerate3d", "off"]
+      vb.customize ["modifyvm", :id, "--audio", "none"]
+      vb.customize ["modifyvm", :id, "--clipboard", "disabled"]
+      vb.customize ["modifyvm", :id, "--draganddrop", "disabled"]
+      vb.customize ["modifyvm", :id, "--usb", "off"]
+      
+      # Crear disco compacto
+      unless File.exist?("ubuntu-server-disk.vdi")
+        vb.customize ["createhd", "--filename", "ubuntu-server-disk.vdi", "--size", "15360", "--format", "VDI", "--variant", "Standard"]
+      end
+    end
+    
+    # Scripts de provisioning
+    ubuntu.vm.provision "shell", path: "provision/common/update-system.sh"
+    ubuntu.vm.provision "shell", path: "provision/ubuntu-server/install-services.sh"
+    ubuntu.vm.provision "shell", path: "provision/ubuntu-server/install-web-stack.sh"
+    ubuntu.vm.provision "shell", path: "provision/ubuntu-server/install-vulnerable-apps.sh"
+    ubuntu.vm.provision "shell", path: "provision/ubuntu-server/configure-ssh.sh"
+    ubuntu.vm.provision "shell", path: "provision/ubuntu-server/setup-firewall.sh"
+    
+    # Configuración post-instalación
+    ubuntu.vm.provision "shell", inline: <<-SHELL
+      echo "192.168.56.10 ubuntu-server" >> /etc/hosts
+      echo "192.168.56.11 windows-server" >> /etc/hosts
+      echo "192.168.56.20 kali-security" >> /etc/hosts
+      
+      # Crear usuario para ejercicios (solo si no existe)
+      if ! id "admin" &>/dev/null; then
+        useradd -m -s /bin/bash admin
+        echo "admin:adminSAD2024!" | chpasswd
+        usermod -aG sudo admin
+        echo "✓ Usuario admin creado"
+      else
+        echo "✓ Usuario admin ya existe, configurando contraseña"
+        echo "admin:adminSAD2024!" | chpasswd
+        usermod -aG sudo admin
+      fi
+      
+      # Configurar timezone
+      timedatectl set-timezone Europe/Madrid
+      
+      # Mostrar información del laboratorio al final
+      echo "============================================="
+      echo "   Laboratorio SAD - Configuración Optimizada"
+      echo "============================================="
+      echo "VMs disponibles:"
+      echo "- Ubuntu Server:    192.168.56.10 (SSH: localhost:2210)"
+      echo "- Windows Server:   192.168.56.11 (RDP: localhost:3389)"
+      echo "- Windows Client:   192.168.56.12 (RDP: localhost:3390)"
+      echo "- Storage Backup:   192.168.56.13 (SSH: localhost:2213)"
+      echo "- Kali Security:    192.168.56.20 (SSH: localhost:2220)"
+      echo "============================================="
+      echo "💾 Uso total estimado: ~85 GB"
+      echo "🧠 RAM simultánea: 8.5 GB"
+      echo "============================================="
+      echo "💡 Ejecuta solo las VMs necesarias por ejercicio"
+      echo "📋 Credenciales en guia-estudiante.md"
+      echo "💾 Crea snapshots antes de ejercicios importantes"
+      echo "============================================="
+    SHELL
+  end
+  
+  # ===========================================
+  # VM 2: Kali Security (Herramientas de seguridad)
+  # ===========================================
+  config.vm.define "kali-security" do |kali|
+    kali.vm.box = "kalilinux/rolling"
+    kali.vm.hostname = "kali-security"
+    kali.vm.network "private_network", ip: "#{NETWORK_BASE}.20"
+    
+    # Puertos forwarded
+    kali.vm.network "forwarded_port", guest: 22, host: 2220
+    kali.vm.network "forwarded_port", guest: 4444, host: 4444  # Metasploit
+    
+    kali.vm.provider "virtualbox" do |vb|
+      vb.name = "SAD-Kali-Security"
+      vb.memory = "2048"  # Reducido de 4096
+      vb.cpus = 1         # Reducido de 2
+      vb.gui = false
+      
+      # Optimizaciones para menor uso de recursos
+      vb.customize ["modifyvm", :id, "--vram", "16"]
+      vb.customize ["modifyvm", :id, "--accelerate3d", "off"]
+      vb.customize ["modifyvm", :id, "--audio", "none"]
+      vb.customize ["modifyvm", :id, "--clipboard", "disabled"]
+      vb.customize ["modifyvm", :id, "--usb", "off"]
+    end
+    
+    # Scripts de provisioning para Kali
+    kali.vm.provision "shell", path: "provision/common/update-system.sh"
+    kali.vm.provision "shell", path: "provision/kali-security/update-tools.sh"
+    kali.vm.provision "shell", path: "provision/kali-security/configure-metasploit.sh"
+    kali.vm.provision "shell", path: "provision/kali-security/configure-metasploit-advanced.sh"
+    kali.vm.provision "shell", path: "provision/kali-security/setup-wireshark.sh"
+    
+    kali.vm.provision "shell", inline: <<-SHELL
+      # Configurar usuario kali con contraseña conocida
+      echo "kali:kali" | chpasswd
+      
+      # Hosts file
+      echo "192.168.56.20 kali-security" >> /etc/hosts
+      echo "192.168.56.10 ubuntu-server" >> /etc/hosts
+      echo "192.168.56.11 windows-server" >> /etc/hosts
+      echo "192.168.56.13 storage-backup" >> /etc/hosts
+      
+      # Habilitar SSH para administración remota
+      systemctl enable ssh
+      systemctl start ssh
+    SHELL
+  end
+  
+  # ===========================================
+  # VM 3: Storage Backup (Servidor de respaldos)
+  # ===========================================
+  config.vm.define "storage-backup" do |storage|
+    storage.vm.box = "debian/bookworm64"
+    storage.vm.hostname = "storage-backup"
+    storage.vm.network "private_network", ip: "#{NETWORK_BASE}.13"
+    
+    # Puertos para servicios de backup
+    storage.vm.network "forwarded_port", guest: 22, host: 2213
+    storage.vm.network "forwarded_port", guest: 445, host: 4445  # SMB
+    storage.vm.network "forwarded_port", guest: 2049, host: 2049 # NFS
+    
+    storage.vm.provider "virtualbox" do |vb|
+      vb.name = "SAD-Storage-Backup"
+      vb.memory = "1024"  # Reducido de 2048
+      vb.cpus = 1
+      vb.gui = false
+      
+      # Optimizaciones para menor uso de recursos
+      vb.customize ["modifyvm", :id, "--vram", "12"]
+      vb.customize ["modifyvm", :id, "--accelerate3d", "off"]
+      vb.customize ["modifyvm", :id, "--audio", "none"]
+      vb.customize ["modifyvm", :id, "--clipboard", "disabled"]
+      vb.customize ["modifyvm", :id, "--usb", "off"]
+      
+      # Disco más pequeño para backups (20GB en lugar de 100GB)
+      unless File.exist?("storage-disk.vdi")
+        vb.customize ["createhd", "--filename", "storage-disk.vdi", "--size", 20480, "--format", "VDI", "--variant", "Standard"]
+      end
+      vb.customize ["storageattach", :id, "--storagectl", "SATA Controller", "--port", 2, "--device", 0, "--type", "hdd", "--medium", "storage-disk.vdi"]
+    end
+    
+    storage.vm.provision "shell", path: "provision/common/update-system.sh"
+    storage.vm.provision "shell", path: "provision/storage-backup/install-backup-tools.sh"
+    storage.vm.provision "shell", path: "provision/storage-backup/configure-samba.sh"
+    storage.vm.provision "shell", path: "provision/storage-backup/setup-bacula.sh"
+    
+    storage.vm.provision "shell", inline: <<-SHELL
+      # Usuario para backups
+      useradd -m -s /bin/bash backup
+      echo "backup:backup123" | chpasswd
+      usermod -aG sudo backup
+      
+      # Configurar disco adicional para backups (optimizado y seguro)
+      if [ ! -e /dev/sdc1 ]; then
+        echo "Configurando disco adicional para backups..."
+        parted -s /dev/sdc mklabel gpt
+        parted -s /dev/sdc mkpart primary ext4 0% 100%
+        mkfs.ext4 /dev/sdc1
+        mkdir -p /backup
+        # Usar opciones de montaje seguras para evitar emergency mode
+        echo "/dev/sdc1 /backup ext4 defaults,nofail,x-systemd.device-timeout=10 0 2" >> /etc/fstab
+        mount /backup
+        chown backup:backup /backup
+      fi
+    SHELL
+  end
+  
+  # ===========================================
+  # VM 4: Windows Server (Controlador de dominio)
+  # ===========================================
+  config.vm.define "windows-server" do |winserver|
+    winserver.vm.box = "gusztavvargadr/windows-server-2022-standard-core"  # Core edition para menor uso de recursos
+    winserver.vm.hostname = "windows-server"
+    winserver.vm.network "private_network", ip: "#{NETWORK_BASE}.11"
+    
+    # Puertos Windows
+    winserver.vm.network "forwarded_port", guest: 3389, host: 3389  # RDP
+    winserver.vm.network "forwarded_port", guest: 5985, host: 5985  # WinRM
+    winserver.vm.network "forwarded_port", guest: 80, host: 8011    # IIS
+    
+    winserver.vm.provider "virtualbox" do |vb|
+      vb.name = "SAD-Windows-Server"
+      vb.memory = "2048"  # Reducido de 4096
+      vb.cpus = 1         # Reducido de 2
+      vb.gui = false
+      
+      # Optimizaciones para menor uso de recursos
+      vb.customize ["modifyvm", :id, "--vram", "16"]
+      vb.customize ["modifyvm", :id, "--accelerate3d", "off"]
+      vb.customize ["modifyvm", :id, "--audio", "none"]
+      vb.customize ["modifyvm", :id, "--clipboard", "disabled"]
+      vb.customize ["modifyvm", :id, "--usb", "off"]
+    end
+    
+    # Configuración WinRM para administración remota
+    winserver.vm.communicator = "winrm"
+    winserver.winrm.username = "vagrant"
+    winserver.winrm.password = "vagrant"
+    
+    # Scripts PowerShell de provisioning
+    winserver.vm.provision "shell", path: "provision/windows-server/basic-config.ps1"
+    winserver.vm.provision "shell", path: "provision/windows-server/install-services.ps1"
+    # winserver.vm.provision "shell", path: "provision/windows-server/install-ad-services.ps1"  # Deshabilitado por conflictos
+    winserver.vm.provision "shell", path: "provision/windows-server/fix-winrm.ps1"  # Reparar WinRM al final
+    
+    # Configuración básica optimizada
+    winserver.vm.provision "shell", inline: <<-SHELL
+      # Configurar zona horaria
+      tzutil /s "Romance Standard Time"
+      
+      # Habilitar ping (ICMP) en Windows Firewall
+      netsh advfirewall firewall add rule name="Allow ICMPv4-In" protocol=icmpv4:8,any dir=in action=allow
+      netsh advfirewall firewall add rule name="Allow ICMPv4-Out" protocol=icmpv4:8,any dir=out action=allow
+      
+      # Configurar IP estática
+      New-NetIPAddress -IPAddress 192.168.56.11 -PrefixLength 24 -InterfaceAlias "Ethernet" -ErrorAction SilentlyContinue
+      Set-DnsClientServerAddress -InterfaceAlias "Ethernet" -ServerAddresses 8.8.8.8
+      
+      Write-Host "Configuración de red y firewall completada en Windows Server"
+    SHELL
+  end
+  
+  # ===========================================
+  # VM 5: Windows Client (Cliente del dominio)
+  # ===========================================
+  config.vm.define "windows-client" do |winclient|
+    winclient.vm.box = "gusztavvargadr/windows-10-21h2-enterprise"  # Cambiado a box disponible
+    winclient.vm.hostname = "windows-client"
+    winclient.vm.network "private_network", ip: "#{NETWORK_BASE}.12"
+    
+    winclient.vm.network "forwarded_port", guest: 3389, host: 3390  # RDP alternativo
+    
+    winclient.vm.provider "virtualbox" do |vb|
+      vb.name = "SAD-Windows-Client"
+      vb.memory = "2048"  # Reducido de 4096
+      vb.cpus = 1         # Reducido de 2
+      vb.gui = false
+      
+      # Optimizaciones para menor uso de recursos
+      vb.customize ["modifyvm", :id, "--vram", "16"]
+      vb.customize ["modifyvm", :id, "--accelerate3d", "off"]
+      vb.customize ["modifyvm", :id, "--audio", "none"]
+      vb.customize ["modifyvm", :id, "--clipboard", "disabled"]
+      vb.customize ["modifyvm", :id, "--usb", "off"]
+    end
+    
+    winclient.vm.communicator = "winrm"
+    winclient.winrm.username = "vagrant"
+    winclient.winrm.password = "vagrant"
+    
+    # Configuración del cliente
+    winclient.vm.provision "shell", inline: <<-SHELL
+      # Usuario estudiante (con manejo de errores PowerShell)
+      try {
+        net user /add cliente User123! 2>$null
+        Write-Host "Usuario cliente creado exitosamente"
+      } catch {
+        Write-Host "Usuario cliente ya existe o error en creación"
+      }
+      
+      try {
+        net localgroup "Remote Desktop Users" cliente /add 2>$null
+        Write-Host "Usuario cliente agregado al grupo RDP"
+      } catch {
+        Write-Host "Usuario ya está en grupo RDP o error"
+      }
+      
+      # Habilitar ping (ICMP) en Windows Firewall
+      try {
+        netsh advfirewall firewall add rule name="Allow ICMPv4-In" protocol=icmpv4:8,any dir=in action=allow
+        netsh advfirewall firewall add rule name="Allow ICMPv4-Out" protocol=icmpv4:8,any dir=out action=allow
+        Write-Host "Reglas de firewall para ICMP agregadas"
+      } catch {
+        Write-Host "Error configurando firewall para ICMP"
+      }
+      
+      # Configurar DNS (con manejo de errores robusto)
+      $adapter = Get-NetAdapter | Where-Object {$_.Status -eq "Up" -and $_.Name -like "*Ethernet*"} | Select-Object -First 1
+      if ($adapter) {
+        try {
+          Set-DnsClientServerAddress -InterfaceAlias $adapter.Name -ServerAddresses "8.8.8.8" -ErrorAction Stop
+          Write-Host "DNS configurado en interfaz: $($adapter.Name)"
+        } catch {
+          Write-Host "Error configurando DNS: $($_.Exception.Message)"
+        }
+        
+        # Configurar IP estática (con verificación previa)
+        try {
+          $existingIP = Get-NetIPAddress -InterfaceAlias $adapter.Name -AddressFamily IPv4 | Where-Object {$_.IPAddress -eq "192.168.56.12"}
+          if (-not $existingIP) {
+            New-NetIPAddress -IPAddress 192.168.56.12 -PrefixLength 24 -InterfaceAlias $adapter.Name -ErrorAction Stop
+            Write-Host "IP estática configurada: 192.168.56.12"
+          } else {
+            Write-Host "IP 192.168.56.12 ya está configurada"
+          }
+        } catch {
+          Write-Host "Error configurando IP estática: $($_.Exception.Message)"
+        }
+      } else {
+        Write-Host "No se encontró adaptador de red activo"
+      }
+      
+      Write-Host "Configuración de Windows Client completada"
+    SHELL
+  end
+
+end
