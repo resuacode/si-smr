@@ -22,4 +22,540 @@ En este tema veremos como aplicar medidas de seguridad pasiva para proteger fís
    - Política de contraseñas: importancia y establecimiento de requisitos
    - Sistemas biométricos de identificación: ventajas de su uso
 
+## Ejercicios Prácticos - Control de Acceso Lógico
+
+Los siguientes ejercicios están diseñados para practicar los conceptos de control de acceso lógico utilizando las máquinas virtuales del laboratorio SAD. Estos ejercicios complementan el contenido teórico del archivo 03-control-acceso-logico.mdx.
+
+### Preparación del Entorno
+
+Antes de comenzar con los ejercicios, asegúrate de tener las siguientes máquinas virtuales ejecutándose según el ejercicio:
+
+**Máquinas Linux:**
+- **Ubuntu Server** (192.168.56.10) - SSH: localhost:2210
+- **Kali Security** (192.168.56.20) - SSH: localhost:2220  
+- **Storage Backup** (192.168.56.13) - SSH: localhost:2213
+
+**Máquinas Windows:**
+- **Windows Server** (192.168.56.11) - RDP: localhost:3389
+- **Windows Client** (192.168.56.12) - RDP: localhost:3390
+
+**Credenciales por defecto:**
+- Ubuntu Server: `admin:adminSAD2024!`
+- Kali Security: `kali:kali`
+- Storage Backup: `backup:backup123`
+- Windows Server: `vagrant:vagrant` o `labadmin:Password123!`
+- Windows Client: `vagrant:vagrant` o `cliente:User123!`
+
+:::info Optimización de Recursos
+No es necesario ejecutar todas las máquinas simultáneamente. Cada ejercicio especifica qué máquinas necesitas. Para ejercicios básicos, usa solo 2-3 máquinas a la vez.
+:::
+
+:::danger ⚠️ IMPORTANTE: Crear Snapshots o Clones Enlazados ANTES de Comenzar
+
+**ANTES de realizar cualquier ejercicio, es OBLIGATORIO crear clones enlazados o snapshots de las máquinas virtuales.** Los ejercicios incluyen configuraciones que pueden modificar significativamente el sistema y, en caso de error, necesitarás restaurar el estado inicial.
+
+### Opción A: Crear Clones Enlazados (Recomendado)
+
+Para cada máquina virtual que vayas a usar:
+
+1. **Apaga completamente la máquina virtual** (no la suspendas)
+2. Clic derecho sobre la VM en VirtualBox → **"Clonar..."**
+3. **Nombre**: `[Nombre-Original]-LAB-Original` (ej: `SAD-Ubuntu-Server-LAB-Original`)
+4. **Tipo de clonación**: Selecciona **"Clonación enlazada"**
+5. **Instantánea**: Mantén "Estado actual de la máquina"
+6. Finaliza el proceso
+
+### Opción B: Crear Snapshots
+
+1. Selecciona la VM en VirtualBox
+2. Ve a la pestaña **"Instantáneas"** 
+3. Clic en **"Tomar"** (icono de cámara)
+4. **Nombre**: `Estado-Inicial-Ejercicios`
+5. **Descripción**: `Snapshot antes de ejercicios de control de acceso lógico`
+
+### ¿Por qué es importante?
+
+- **Los ejercicios modifican configuraciones críticas** del sistema (PAM, SSH, usuarios, etc.)
+- **Algunos cambios pueden dejar el sistema inaccesible** si se cometen errores
+- **Permite experimentar sin miedo** y aprender de los errores
+- **Ahorra tiempo** al no tener que reconfigurar todo desde cero
+- **Es una práctica profesional** estándar en administración de sistemas
+
+### Restauración rápida:
+
+- **Clones enlazados**: Simplemente elimina la VM "dañada" y clona nuevamente desde el original
+- **Snapshots**: Clic derecho en el snapshot → "Restaurar instantánea"
+
+**💡 Consejo profesional**: En entornos reales, SIEMPRE se hacen snapshots antes de cambios importantes en producción.
+:::
+
+### Ejercicio 1: Configuración de Políticas de Contraseñas en Linux
+
+**Objetivo:** Implementar y probar políticas de contraseñas seguras en el servidor Ubuntu utilizando PAM.
+
+**Máquina:** Ubuntu Server (192.168.56.10)
+
+**Enunciado:**
+1. Accede al servidor Ubuntu Server vía SSH
+2. Configura una política de contraseñas que requiera:
+   - Longitud mínima de 10 caracteres
+   - Al menos 1 mayúscula, 1 minúscula, 1 número y 1 carácter especial
+   - No permitir reutilizar las últimas 5 contraseñas
+   - Máximo 90 días de validez, mínimo 7 días entre cambios
+3. Configura el bloqueo de cuentas después de 3 intentos fallidos durante 10 minutos
+4. Crea tres usuarios de prueba: `user1`, `user2`, `user3`
+5. Prueba la política intentando establecer contraseñas débiles
+
+**Resultado esperado:** Los usuarios solo podrán establecer contraseñas que cumplan con los requisitos definidos. Los intentos de contraseñas débiles serán rechazados con mensajes explicativos.
+
+**Archivos a modificar:**
+- `/etc/pam.d/common-password`
+- `/etc/login.defs`
+- `/etc/security/faillock.conf`
+
+### Ejercicio 2: Implementación de Control de Acceso con ACLs
+
+**Objetivo:** Configurar listas de control de acceso (ACLs) para gestionar permisos granulares en el sistema de archivos.
+
+**Máquina:** Ubuntu Server (192.168.56.10)
+
+**Enunciado:**
+1. Crea la siguiente estructura de directorios en `/home/empresa/`:
+   ```
+   /home/empresa/
+   ├── administracion/
+   ├── contabilidad/
+   ├── desarrollo/
+   └── compartido/
+   ```
+2. Crea los grupos: `admin_group`, `contab_group`, `dev_group`
+3. Asigna los usuarios creados anteriormente a diferentes grupos
+4. Configura ACLs para que:
+   - Los usuarios de `admin_group` tengan acceso completo a todos los directorios
+   - Los usuarios de `contab_group` solo accedan a `contabilidad/` y `compartido/`
+   - Los usuarios de `dev_group` solo accedan a `desarrollo/` y `compartido/`
+   - El directorio `compartido/` permita lectura y escritura a todos los grupos
+5. Crea archivos de prueba en cada directorio y verifica los permisos
+
+**Resultado esperado:** Los usuarios solo podrán acceder a los directorios según sus permisos asignados. Los intentos de acceso no autorizado serán denegados.
+
+**Comandos principales a utilizar:**
+- `setfacl`, `getfacl`, `chmod`, `chown`, `chgrp`
+
+### Ejercicio 3: Configuración Segura de SSH y Auditoría
+
+**Objetivo:** Securizar el servicio SSH y implementar auditoría de accesos.
+
+**Máquina:** Ubuntu Server (192.168.56.10)
+
+**Enunciado:**
+1. Modifica la configuración SSH para:
+   - Cambiar el puerto por defecto a 2222
+   - Deshabilitar login de root
+   - Permitir solo autenticación por clave pública para el usuario `admin`
+   - Limitar intentos de login a 3 por conexión
+   - Configurar timeout de 300 segundos
+2. Genera un par de claves SSH para el usuario `admin`
+3. Configura un banner de advertencia personalizado
+4. Habilita logging detallado de SSH
+5. Desde Kali Security, intenta conectarte con diferentes métodos y analiza los logs
+
+**Resultado esperado:** SSH funcionará solo en el puerto 2222, con autenticación por clave para admin y logging completo de intentos de conexión.
+
+**Archivos a modificar:**
+- `/etc/ssh/sshd_config`
+- `/etc/ssh/ssh_banner`
+
+### Ejercicio 4: Análisis de Fortaleza de Contraseñas
+
+**Objetivo:** Utilizar herramientas de auditoría para evaluar la fortaleza de contraseñas del sistema.
+
+**Máquinas:** Ubuntu Server (192.168.56.10) y Kali Security (192.168.56.20)
+
+**Enunciado:**
+1. En Ubuntu Server:
+   - Crea 5 usuarios adicionales con contraseñas de diferentes niveles de complejidad
+   - Extrae el archivo `/etc/shadow` para análisis
+2. En Kali Security:
+   - Instala y configura John the Ripper
+   - Utiliza diferentes métodos de ataque:
+     - Single crack mode
+     - Wordlist attack
+     - Incremental mode (limitado)
+   - Documenta qué contraseñas fueron comprometidas y en qué tiempo
+3. Analiza los resultados y propón mejoras en la política de contraseñas
+
+**Resultado esperado:** Identificación de contraseñas débiles y comprensión de la importancia de políticas de contraseñas robustas.
+
+**Herramientas a utilizar:**
+- `john`, `unshadow`, diccionarios de rockyou
+
+### Ejercicio 5: Control de Acceso a Recursos Compartidos (Samba)
+
+**Objetivo:** Configurar y securizar el acceso a recursos compartidos utilizando Samba con diferentes niveles de acceso.
+
+**Máquina:** Storage Backup (192.168.56.13)
+
+**Enunciado:**
+1. Configura Samba con las siguientes características:
+   - Compartición `publico/` con acceso de solo lectura para todos los usuarios autenticados
+   - Compartición `privado/` con acceso completo solo para usuarios del grupo `backup`
+   - Compartición `departamentos/` con subdirectorios que tengan acceso específico por grupos
+2. Crea usuarios Samba: `usuario1`, `usuario2`, `administrador`
+3. Configura logs detallados de acceso
+4. Desde Ubuntu Server, monta los recursos compartidos y prueba los permisos
+5. Implementa restricciones de IP para permitir acceso solo desde la red del laboratorio
+
+**Resultado esperado:** Sistema de archivos compartidos con control de acceso granular y auditoría completa de operaciones.
+
+**Archivos a modificar:**
+- `/etc/samba/smb.conf`
+
+### Ejercicio 6: Implementación de Sudo y Escalación de Privilegios
+
+**Objetivo:** Configurar el sistema sudo para control granular de privilegios administrativos.
+
+**Máquina:** Ubuntu Server (192.168.56.10)
+
+**Enunciado:**
+1. Configura diferentes niveles de acceso sudo:
+   - Grupo `operators`: puede reiniciar servicios específicos (apache2, mysql, ssh)
+   - Grupo `backup_admins`: puede ejecutar comandos de backup y gestión de archivos
+   - Grupo `network_admins`: puede ejecutar comandos de red y firewall
+2. Crea usuarios y asígnalos a estos grupos
+3. Configura sudo para:
+   - Requerir contraseña para todas las operaciones
+   - Registrar todos los comandos ejecutados
+   - Enviar notificaciones por email (simular) para comandos críticos
+4. Prueba cada nivel de acceso y verifica los logs
+
+**Resultado esperado:** Control granular de privilegios administrativos con auditoría completa de acciones realizadas.
+
+**Archivo a modificar:**
+- `/etc/sudoers` (usando `visudo`)
+
+### Ejercicio 7: Monitorización y Detección de Intrusiones
+
+**Objetivo:** Implementar monitorización básica para detectar intentos de acceso no autorizado.
+
+**Máquinas:** Ubuntu Server (192.168.56.10) y Kali Security (192.168.56.20)
+
+**Enunciado:**
+1. En Ubuntu Server:
+   - Configura alertas para múltiples intentos fallidos de login
+   - Implementa monitorización de archivos críticos con `inotify`
+   - Configura logs centralizados para servicios críticos
+   - Crea scripts que envíen alertas cuando se detecten patrones sospechosos
+2. En Kali Security:
+   - Simula diferentes tipos de ataques:
+     - Ataques de fuerza bruta SSH
+     - Intentos de escalación de privilegios
+     - Acceso a archivos sensibles
+3. Analiza los logs y verifica que las alertas se generen correctamente
+
+**Resultado esperado:** Sistema de monitorización que detecte y alerte sobre actividades sospechosas en tiempo real.
+
+### Ejercicio 8: Control de Acceso en Windows Server - Políticas de Seguridad Local
+
+**Objetivo:** Configurar políticas de seguridad local en Windows Server y comprender las diferencias con los sistemas Linux.
+
+**Máquina:** Windows Server (192.168.56.11)
+
+**Enunciado:**
+1. Accede al Windows Server vía RDP (localhost:3389)
+   - Usuario: `vagrant` / Contraseña: `vagrant`
+   - O utiliza: `labadmin` / Contraseña: `Password123!`
+2. Configura las siguientes políticas de seguridad local usando `secpol.msc`:
+   - **Política de contraseñas:**
+     - Longitud mínima: 12 caracteres
+     - Complejidad: Habilitada (mayúsculas, minúsculas, números, símbolos)
+     - Vigencia máxima: 60 días
+     - Recordar últimas 10 contraseñas
+   - **Política de bloqueo de cuentas:**
+     - Umbral de bloqueo: 3 intentos
+     - Duración del bloqueo: 15 minutos
+     - Restablecer contador después de: 10 minutos
+   - **Política de auditoría:**
+     - Habilitar auditoría de eventos de inicio de sesión
+     - Habilitar auditoría de acceso a objetos
+     - Habilitar auditoría de cambios de política
+3. Crea los siguientes usuarios locales usando `lusrmgr.msc`:
+   - `gerente` (grupo Administradores)
+   - `empleado1` (grupo Usuarios)
+   - `empleado2` (grupo Usuarios)
+   - `invitado_temp` (grupo Invitados)
+4. Configura derechos de usuario en `secpol.msc`:
+   - Permitir inicio de sesión local solo a administradores y usuarios autorizados
+   - Denegar inicio de sesión como servicio al grupo Invitados
+   - Restringir acceso desde la red solo a usuarios autenticados
+5. Prueba las políticas:
+   - Intenta crear contraseñas débiles para los nuevos usuarios
+   - Realiza intentos de inicio de sesión fallidos
+   - Verifica los eventos en el Visor de eventos de Windows
+
+**Resultado esperado:** Sistema Windows con políticas de seguridad robustas comparables a las implementadas en Linux, comprendiendo las herramientas específicas de Windows (GPO, secpol.msc, lusrmgr.msc).
+
+**Herramientas de Windows utilizadas:**
+- `secpol.msc` (Política de seguridad local)
+- `lusrmgr.msc` (Usuarios y grupos locales)
+- `eventvwr.msc` (Visor de eventos)
+- `gpedit.msc` (Editor de directivas de grupo local)
+
+### Ejercicio 9: Configuración de Recursos Compartidos y Permisos NTFS en Windows
+
+**Objetivo:** Implementar control de acceso granular utilizando permisos NTFS y recursos compartidos de Windows, comparando con las ACLs de Linux.
+
+**Máquina:** Windows Server (192.168.56.11)
+
+**Enunciado:**
+1. Crea la siguiente estructura de carpetas en `C:\EmpresaData\`:
+   ```
+   C:\EmpresaData\
+   ├── Administracion\
+   ├── Contabilidad\
+   ├── Desarrollo\
+   ├── RecursosHumanos\
+   └── Compartido\
+   ```
+2. Crea los siguientes grupos locales:
+   - `Admin_Group`
+   - `Contab_Group`
+   - `Dev_Group`
+   - `RRHH_Group`
+3. Asigna usuarios a grupos:
+   - `gerente` → `Admin_Group`
+   - `empleado1` → `Contab_Group`
+   - `empleado2` → `Dev_Group`
+   - Crea `empleado3` y asígnalo a `RRHH_Group`
+4. Configura permisos NTFS (clic derecho → Propiedades → Seguridad):
+   - `Administracion\`: Control total para `Admin_Group`, denegar acceso a otros
+   - `Contabilidad\`: Control total para `Contab_Group`, lectura para `Admin_Group`
+   - `Desarrollo\`: Control total para `Dev_Group`, lectura para `Admin_Group`
+   - `RecursosHumanos\`: Control total para `RRHH_Group`, lectura para `Admin_Group`
+   - `Compartido\`: Lectura y escritura para todos los grupos
+5. Crea recursos compartidos de red para cada carpeta:
+   - Configura permisos de recurso compartido diferentes a los NTFS
+   - `Administracion$` (oculto) - solo `Admin_Group`
+   - `Contabilidad` - `Contab_Group` y `Admin_Group`
+   - `Desarrollo` - `Dev_Group` y `Admin_Group`
+   - `RecursosHumanos` - `RRHH_Group` y `Admin_Group`
+   - `Compartido` - Todos los usuarios autenticados
+6. Desde Ubuntu Server, prueba el acceso a los recursos compartidos:
+   ```bash
+   # Instalar smbclient si no está disponible
+   sudo apt install smbclient
    
+   # Listar recursos compartidos
+   smbclient -L //192.168.56.11 -U labuser
+   
+   # Intentar acceder a diferentes recursos
+   smbclient //192.168.56.11/Compartido -U labuser
+   ```
+7. Habilita auditoría de acceso a archivos:
+   - En las propiedades de cada carpeta, pestaña Seguridad → Opciones avanzadas → Auditoría
+   - Configura auditoría para "Control total" en intentos correctos e incorrectos
+   - Verifica los eventos en el registro de seguridad
+
+**Resultado esperado:** Comprensión de la diferencia entre permisos NTFS y permisos de recursos compartidos, implementación de control de acceso granular en Windows comparable a las ACLs de Linux.
+
+**Conceptos clave de Windows vs Linux:**
+- **Windows**: Permisos NTFS + Permisos de recurso compartido (el más restrictivo prevalece)
+- **Linux**: ACLs POSIX + permisos tradicionales
+- **Windows**: Auditoría integrada en el sistema de archivos
+- **Linux**: Auditoría mediante auditd y herramientas específicas
+
+### Ejercicio 10: Integración Cliente-Servidor Windows - Experiencia del Usuario Final
+
+**Objetivo:** Simular un entorno corporativo completo probando el acceso desde un cliente Windows a recursos del servidor, experimentando las políticas de seguridad desde la perspectiva del usuario final.
+
+**Máquinas:** Windows Server (192.168.56.11) y Windows Client (192.168.56.12)
+
+**Enunciado:**
+
+**Parte A: Configuración en Windows Server**
+1. Asegúrate de que los ejercicios 8 y 9 estén completados (usuarios, grupos, recursos compartidos)
+2. Crea un usuario adicional específico para este ejercicio:
+   - Usuario: `empleado_remoto`
+   - Contraseña: `Temporal123!` (que deberá cambiar en el primer inicio)
+   - Grupo: `Dev_Group`
+3. Configura una política adicional:
+   - El usuario debe cambiar la contraseña en el próximo inicio de sesión
+   - Habilita "El usuario no puede cambiar la contraseña" temporalmente
+   - Configura horarios de inicio de sesión (solo de 8:00 AM a 6:00 PM)
+
+**Parte B: Experiencia desde Windows Client**
+1. Accede al Windows Client vía RDP (localhost:3390)
+2. Intenta conectarte a los recursos compartidos del servidor usando diferentes métodos:
+   
+   **Método 1 - Explorador de archivos:**
+   ```
+   - Abre el Explorador de archivos
+   - En la barra de direcciones escribe: \\192.168.56.11
+   - Prueba con diferentes credenciales
+   ```
+   
+   **Método 2 - Línea de comandos:**
+   ```cmd
+   # Mapear unidad de red
+   net use Z: \\192.168.56.11\Desarrollo /user:empleado_remoto
+   
+   # Ver unidades mapeadas
+   net use
+   
+   # Acceder a la unidad
+   dir Z:
+   
+   # Desconectar unidad
+   net use Z: /delete
+   ```
+   
+   **Método 3 - PowerShell:**
+   ```powershell
+   # Crear credencial de forma segura
+   $credential = Get-Credential
+   
+   # Mapear unidad con credencial
+   New-PSDrive -Name "Y" -PSProvider FileSystem -Root "\\192.168.56.11\Compartido" -Credential $credential
+   
+   # Listar contenido
+   Get-ChildItem Y:
+   ```
+
+3. **Pruebas de políticas de seguridad:**
+   - Intenta acceder con credenciales incorrectas (verifica el bloqueo de cuenta)
+   - Prueba el acceso fuera del horario permitido (si es posible simular)
+   - Intenta acceder a recursos no autorizados
+   - Cambia la contraseña cuando el sistema lo requiera
+
+4. **Monitorización desde el cliente:**
+   - Abre el Visor de eventos local (`eventvwr.msc`)
+   - Revisa los eventos de seguridad relacionados con autenticación de red
+   - Documenta los códigos de evento que aparecen
+
+**Parte C: Análisis de conectividad y troubleshooting**
+1. **Pruebas de conectividad básica:**
+   ```cmd
+   # Ping al servidor
+   ping 192.168.56.11
+   
+   # Verificar puertos abiertos
+   telnet 192.168.56.11 445
+   
+   # Resolver nombres NetBIOS
+   nbtstat -A 192.168.56.11
+   
+   # Verificar conexiones activas
+   netstat -an | findstr 192.168.56.11
+   ```
+
+2. **Herramientas de diagnóstico Windows:**
+   ```cmd
+   # Información de la caché de credenciales
+   cmdkey /list
+   
+   # Información de sesiones SMB
+   net session
+   
+   # Estado de la autenticación Kerberos (si aplica)
+   klist
+   ```
+
+3. **Simulación de problemas comunes:**
+   - Desconecta y reconecta la red
+   - Cambia la hora del cliente (para simular problemas de sincronización)
+   - Bloquea la cuenta del usuario intencionalmente
+   - Intenta acceder desde fuera del horario permitido
+
+**Resultado esperado:** 
+- Comprensión completa del flujo de autenticación cliente-servidor en Windows
+- Experiencia práctica con herramientas de conectividad y diagnóstico
+- Entendimiento de cómo las políticas del servidor afectan la experiencia del usuario
+- Habilidades de troubleshooting en entornos Windows
+
+**Documentación requerida:**
+- Capturas de pantalla de los diferentes métodos de conexión
+- Log de eventos relevantes tanto del cliente como del servidor
+- Análisis de los códigos de error encontrados y su significado
+- Comparación entre la experiencia en Windows vs acceso desde Linux (ejercicio anterior)
+
+### Ejercicio 11: Recuperación y Fortalecimiento Post-Incidente
+
+**Objetivo:** Simular un escenario de compromiso de credenciales y aplicar medidas de recuperación en entornos mixtos.
+
+**Máquinas:** Ubuntu Server (192.168.56.10), Windows Server (192.168.56.11) y Kali Security (192.168.56.20)
+
+**Enunciado:**
+
+**Escenario:** Se ha detectado actividad sospechosa que indica que las credenciales de usuarios administrativos han sido comprometidas en ambos sistemas (Linux y Windows).
+
+**Parte A: Respuesta inmediata en Linux (Ubuntu Server)**
+1. Acciones de contención:
+   - Fuerza el cambio de contraseña del usuario `admin`
+   - Revoca y regenera todas las claves SSH
+   - Mata todas las sesiones SSH activas sospechosas
+   - Cambia temporalmente el puerto SSH
+2. Investigación:
+   - Analiza `/var/log/auth.log` para identificar IPs sospechosas
+   - Revisa `/var/log/secure` para intentos de escalación de privilegios
+   - Examina el historial de comandos de usuarios comprometidos
+   - Verifica integridad de archivos críticos con `aide` o checksums
+
+**Parte B: Respuesta inmediata en Windows (Windows Server)**
+1. Acciones de contención:
+   - Deshabilita temporalmente las cuentas comprometidas
+   - Fuerza el cambio de contraseña de `labadmin` y otros usuarios administrativos
+   - Revisa y cierra sesiones RDP activas sospechosas
+   - Cambia temporalmente el puerto RDP
+2. Investigación:
+   - Analiza el registro de seguridad en `eventvwr.msc` (eventos 4624, 4625, 4648)
+   - Revisa intentos de acceso fallidos y exitosos
+   - Examina el registro de auditoría de objetos
+   - Verifica cambios en grupos de administradores locales
+
+**Parte C: Fortalecimiento post-incidente (Ambos sistemas)**
+1. **Linux - Medidas adicionales:**
+   - Implementa fail2ban para bloqueo automático de IPs
+   - Configura restricciones de horario con PAM
+   - Habilita auditoría avanzada con `auditd`
+   - Implementa monitorización de archivos críticos con `inotify`
+   - Configura alertas automáticas por email/syslog
+
+2. **Windows - Medidas adicionales:**
+   - Configura bloqueo automático de cuentas más estricto
+   - Implementa restricciones de horario de inicio de sesión
+   - Habilita auditoría avanzada de acceso a objetos
+   - Configura alertas en el Visor de eventos
+   - Implementa PowerShell logging avanzado
+
+**Parte D: Verificación y testing**
+1. Desde Kali Security, realiza pruebas controladas:
+   - Intenta ataques de fuerza bruta SSH (debe ser bloqueado)
+   - Prueba ataques RDP (debe ser bloqueado)
+   - Verifica que las alertas se generen correctamente
+   - Documenta la efectividad de las contramedidas
+
+**Resultado esperado:** 
+- Procedimiento completo de respuesta a incidentes para entornos mixtos
+- Comprensión de las diferencias en investigación forense entre Linux y Windows
+- Implementación de contramedidas efectivas en ambos sistemas
+- Capacidad de correlacionar eventos de seguridad entre múltiples sistemas
+
+### Evaluación y Documentación
+
+Para cada ejercicio, documenta:
+
+1. **Configuraciones realizadas**: Archivos modificados y cambios específicos
+2. **Pruebas ejecutadas**: Capturas de pantalla de las pruebas de funcionamiento
+3. **Resultados obtenidos**: Verificación de que los objetivos se cumplieron
+4. **Problemas encontrados**: Dificultades y cómo se resolvieron
+5. **Mejoras propuestas**: Sugerencias para fortalecer aún más la seguridad
+
+:::warning Importante
+Antes de iniciar los ejercicios, crea snapshots de las máquinas virtuales para poder restaurar el estado inicial si es necesario. Realiza cada ejercicio en orden, ya que algunos dependen de configuraciones previas.
+:::
+
+:::tip Recursos Adicionales
+- Consulta los logs del sistema regularmente: `/var/log/auth.log`, `/var/log/syslog`
+- Utiliza `man` para obtener información detallada de los comandos utilizados
+- Documenta todos los cambios para poder revertirlos si es necesario
+:::
