@@ -1,0 +1,634 @@
+---
+title: Guía de Instalación - Laboratorio SAD v2.0
+description: Instalación completa con Vagrant - Todo el código incluido
+sidebar_position: 1
+---
+
+# 🚀 Guía de Instalación del Laboratorio SAD v2.0
+
+## 📋 Descripción
+
+Laboratorio virtualizado con 5 máquinas para prácticas de **Seguridad y Alta Disponibilidad**.
+
+**Características**:
+- ✅ Configuración simplificada y estable
+- ✅ SSH funcional desde el host
+- ✅ Deploy en 30-60 minutos
+- ✅ Todo el código incluido aquí
+
+---
+
+## 🎯 Máquinas del Laboratorio
+
+| VM | IP | OS | RAM | Servicios |
+|---|---|---|---|---|
+| Ubuntu Server | 192.168.56.10 | Ubuntu 22.04 | 1.5GB | Apache, MySQL |
+| Windows Server | 192.168.56.11 | Win Server 2022 | 2GB | IIS, SMB |
+| Windows Client | 192.168.56.12 | Windows 10 | 2GB | RDP |
+| Storage Backup | 192.168.56.13 | Debian 12 | 1GB | Samba, NFS |
+| Kali Security | 192.168.56.20 | Kali Rolling | 2GB | Pentesting |
+
+---
+
+## 📦 Requisitos
+
+- **VirtualBox** 7.0+
+- **Vagrant** 2.3+
+- **8GB RAM** mínimo (16GB recomendado)
+- **100GB disco** libre
+
+---
+
+## 🛠️ Instalación Paso a Paso
+
+### 1️⃣ Crear directorio
+
+```bash
+mkdir ~/laboratorio-sad
+cd ~/laboratorio-sad
+mkdir provision
+```
+
+### 2️⃣ Crear Vagrantfile
+
+<details>
+<summary>📄 <strong>Vagrantfile completo (click para expandir)</strong></summary>
+
+```ruby
+# -*- mode: ruby -*-
+# vi: set ft=ruby :
+
+# Laboratorio SAD v2.0 - Configuración Simplificada
+
+Vagrant.configure("2") do |config|
+  config.vm.box_check_update = false
+  
+  NETWORK_BASE = "192.168.56"
+  
+  # ===========================================
+  # VM 1: Ubuntu Server (192.168.56.10)
+  # ===========================================
+  config.vm.define "ubuntu-server" do |ubuntu|
+    ubuntu.vm.box = "ubuntu/jammy64"
+    ubuntu.vm.hostname = "ubuntu-server"
+    ubuntu.vm.network "private_network", ip: "#{NETWORK_BASE}.10"
+    
+    ubuntu.vm.network "forwarded_port", guest: 22, host: 2210, id: "ssh"
+    ubuntu.vm.network "forwarded_port", guest: 80, host: 8080
+    ubuntu.vm.network "forwarded_port", guest: 3306, host: 3306
+    
+    ubuntu.vm.provider "virtualbox" do |vb|
+      vb.name = "SAD-Ubuntu-Server"
+      vb.memory = "1536"
+      vb.cpus = 1
+      vb.gui = false
+      vb.linked_clone = true
+      
+      vb.customize ["modifyvm", :id, "--vram", "16"]
+      vb.customize ["modifyvm", :id, "--audio", "none"]
+      vb.customize ["modifyvm", :id, "--usb", "off"]
+    end
+    
+    ubuntu.vm.provision "shell", path: "provision/ubuntu-server.sh"
+  end
+  
+  # ===========================================
+  # VM 2: Kali Security (192.168.56.20)
+  # ===========================================
+  config.vm.define "kali-security" do |kali|
+    kali.vm.box = "kalilinux/rolling"
+    kali.vm.hostname = "kali-security"
+    kali.vm.network "private_network", ip: "#{NETWORK_BASE}.20"
+    
+    kali.vm.network "forwarded_port", guest: 22, host: 2220, id: "ssh"
+    
+    kali.vm.provider "virtualbox" do |vb|
+      vb.name = "SAD-Kali-Security"
+      vb.memory = "2048"
+      vb.cpus = 1
+      vb.gui = false
+      vb.linked_clone = true
+      
+      vb.customize ["modifyvm", :id, "--vram", "16"]
+      vb.customize ["modifyvm", :id, "--audio", "none"]
+      vb.customize ["modifyvm", :id, "--usb", "off"]
+    end
+    
+    kali.vm.provision "shell", path: "provision/kali-security.sh"
+  end
+  
+  # ===========================================
+  # VM 3: Storage Backup (192.168.56.13)
+  # ===========================================
+  config.vm.define "storage-backup" do |storage|
+    storage.vm.box = "debian/bookworm64"
+    storage.vm.hostname = "storage-backup"
+    storage.vm.network "private_network", ip: "#{NETWORK_BASE}.13"
+    
+    storage.vm.network "forwarded_port", guest: 22, host: 2213, id: "ssh"
+    storage.vm.network "forwarded_port", guest: 445, host: 4445
+    storage.vm.network "forwarded_port", guest: 2049, host: 2049
+    
+    storage.vm.provider "virtualbox" do |vb|
+      vb.name = "SAD-Storage-Backup"
+      vb.memory = "1024"
+      vb.cpus = 1
+      vb.gui = false
+      vb.linked_clone = true
+      
+      vb.customize ["modifyvm", :id, "--vram", "12"]
+      vb.customize ["modifyvm", :id, "--audio", "none"]
+      vb.customize ["modifyvm", :id, "--usb", "off"]
+    end
+    
+    storage.vm.provision "shell", path: "provision/storage-backup.sh"
+  end
+  
+  # ===========================================
+  # VM 4: Windows Server (192.168.56.11)
+  # ===========================================
+  config.vm.define "windows-server" do |winserver|
+    winserver.vm.box = "gusztavvargadr/windows-server-2022-standard"
+    winserver.vm.hostname = "windows-server"
+    winserver.vm.network "private_network", ip: "#{NETWORK_BASE}.11"
+    
+    winserver.vm.network "forwarded_port", guest: 3389, host: 3389, id: "rdp"
+    winserver.vm.network "forwarded_port", guest: 80, host: 8081
+    winserver.vm.network "forwarded_port", guest: 445, host: 4446
+    
+    winserver.vm.provider "virtualbox" do |vb|
+      vb.name = "SAD-Windows-Server"
+      vb.memory = "2048"
+      vb.cpus = 1
+      vb.gui = false
+      vb.linked_clone = true
+      
+      vb.customize ["modifyvm", :id, "--vram", "16"]
+      vb.customize ["modifyvm", :id, "--audio", "none"]
+      vb.customize ["modifyvm", :id, "--usb", "off"]
+    end
+    
+    winserver.vm.communicator = "winrm"
+    winserver.winrm.username = "vagrant"
+    winserver.winrm.password = "vagrant"
+    winserver.winrm.timeout = 1800
+    
+    winserver.vm.provision "shell", path: "provision/windows-server.ps1"
+  end
+  
+  # ===========================================
+  # VM 5: Windows Client (192.168.56.12)
+  # ===========================================
+  config.vm.define "windows-client" do |winclient|
+    winclient.vm.box = "gusztavvargadr/windows-10-22h2-enterprise"
+    winclient.vm.hostname = "windows-client"
+    winclient.vm.network "private_network", ip: "#{NETWORK_BASE}.12"
+    
+    winclient.vm.network "forwarded_port", guest: 3389, host: 3390, id: "rdp"
+    
+    winclient.vm.provider "virtualbox" do |vb|
+      vb.name = "SAD-Windows-Client"
+      vb.memory = "2048"
+      vb.cpus = 1
+      vb.gui = false
+      vb.linked_clone = true
+      
+      vb.customize ["modifyvm", :id, "--vram", "16"]
+      vb.customize ["modifyvm", :id, "--audio", "none"]
+      vb.customize ["modifyvm", :id, "--usb", "off"]
+    end
+    
+    winclient.vm.communicator = "winrm"
+    winclient.winrm.username = "vagrant"
+    winclient.winrm.password = "vagrant"
+    winclient.winrm.timeout = 1800
+    
+    winclient.vm.provision "shell", path: "provision/windows-client.ps1"
+  end
+  
+  config.vm.post_up_message = <<-MSG
+  ============================================
+  🎉 Laboratorio SAD v2.0 desplegado
+  ============================================
+  
+  VMs disponibles:
+  - Ubuntu Server:    192.168.56.10 (SSH: localhost:2210)
+  - Windows Server:   192.168.56.11 (RDP: localhost:3389)
+  - Windows Client:   192.168.56.12 (RDP: localhost:3390)
+  - Storage Backup:   192.168.56.13 (SSH: localhost:2213)
+  - Kali Security:    192.168.56.20 (SSH: localhost:2220)
+  
+  📋 Ver CREDENCIALES.md para accesos
+  🧪 Test: ./test-conectividad.sh
+  ============================================
+  MSG
+end
+```
+
+</details>
+
+### 3️⃣ Crear Scripts de Provisioning
+
+<details>
+<summary>📄 <strong>provision/ubuntu-server.sh</strong></summary>
+
+```bash
+#!/bin/bash
+set -e
+
+echo "============================================"
+echo "Configurando Ubuntu Server..."
+echo "============================================"
+
+timedatectl set-timezone Europe/Madrid || true
+localectl set-keymap es || true
+
+export DEBIAN_FRONTEND=noninteractive
+apt-get update -qq
+apt-get install -y -qq apache2 mysql-server php libapache2-mod-php php-mysql
+
+if ! id "admin" &>/dev/null; then
+    useradd -m -s /bin/bash -G sudo admin
+    echo "admin:adminSAD2024!" | chpasswd
+fi
+
+sed -i 's/#PasswordAuthentication yes/PasswordAuthentication yes/' /etc/ssh/sshd_config
+sed -i 's/PasswordAuthentication no/PasswordAuthentication yes/' /etc/ssh/sshd_config
+systemctl restart sshd || systemctl restart ssh
+
+ufw --force disable || true
+
+systemctl enable apache2
+systemctl start apache2
+
+cat > /var/www/html/index.html << 'EOF'
+<!DOCTYPE html>
+<html>
+<head><title>Ubuntu Server - Lab SAD</title></head>
+<body>
+    <h1>Ubuntu Server - Laboratorio SAD</h1>
+    <p>Apache funcionando correctamente</p>
+    <p>IP: 192.168.56.10</p>
+</body>
+</html>
+EOF
+
+mysql -e "CREATE DATABASE IF NOT EXISTS labsad;" 2>/dev/null || true
+mysql -e "CREATE USER IF NOT EXISTS 'labsad'@'%' IDENTIFIED BY 'labsad123';" 2>/dev/null || true
+mysql -e "GRANT ALL PRIVILEGES ON labsad.* TO 'labsad'@'%';" 2>/dev/null
+mysql -e "FLUSH PRIVILEGES;" 2>/dev/null
+
+cat >> /etc/hosts << 'EOF'
+192.168.56.10 ubuntu-server
+192.168.56.11 windows-server
+192.168.56.12 windows-client
+192.168.56.13 storage-backup
+192.168.56.20 kali-security
+EOF
+
+echo "✅ Ubuntu Server configurado"
+```
+
+</details>
+
+<details>
+<summary>📄 <strong>provision/kali-security.sh</strong></summary>
+
+```bash
+#!/bin/bash
+set -e
+
+echo "============================================"
+echo "Configurando Kali Security..."
+echo "============================================"
+
+timedatectl set-timezone Europe/Madrid || true
+echo "kali:kali" | chpasswd
+
+sed -i 's/#PasswordAuthentication yes/PasswordAuthentication yes/' /etc/ssh/sshd_config
+sed -i 's/PasswordAuthentication no/PasswordAuthentication yes/' /etc/ssh/sshd_config
+systemctl restart sshd || systemctl restart ssh
+systemctl enable ssh
+
+export DEBIAN_FRONTEND=noninteractive
+apt-get update -qq
+apt-get install -y -qq nmap wireshark-cli tcpdump netcat-traditional curl wget
+
+cat >> /etc/hosts << 'EOF'
+192.168.56.10 ubuntu-server
+192.168.56.11 windows-server
+192.168.56.12 windows-client
+192.168.56.13 storage-backup
+192.168.56.20 kali-security
+EOF
+
+cat > /home/kali/install-metasploit.sh << 'EOF'
+#!/bin/bash
+echo "Instalando Metasploit Framework..."
+sudo apt-get update
+sudo apt-get install -y metasploit-framework postgresql
+sudo systemctl enable postgresql
+sudo systemctl start postgresql
+sudo msfdb init
+echo "✅ Metasploit instalado"
+EOF
+chmod +x /home/kali/install-metasploit.sh
+chown kali:kali /home/kali/install-metasploit.sh
+
+echo "✅ Kali Security configurado"
+```
+
+</details>
+
+<details>
+<summary>📄 <strong>provision/storage-backup.sh</strong></summary>
+
+```bash
+#!/bin/bash
+set -e
+
+echo "============================================"
+echo "Configurando Storage Backup..."
+echo "============================================"
+
+timedatectl set-timezone Europe/Madrid || true
+
+if ! id "backup" &>/dev/null; then
+    useradd -m -s /bin/bash -G sudo backup
+    echo "backup:backup123" | chpasswd
+fi
+
+sed -i 's/#PasswordAuthentication yes/PasswordAuthentication yes/' /etc/ssh/sshd_config
+sed -i 's/PasswordAuthentication no/PasswordAuthentication yes/' /etc/ssh/sshd_config
+systemctl restart sshd || systemctl restart ssh
+
+export DEBIAN_FRONTEND=noninteractive
+apt-get update -qq
+apt-get install -y -qq samba nfs-kernel-server
+
+mkdir -p /srv/samba/public
+chmod 777 /srv/samba/public
+
+cat > /etc/samba/smb.conf << 'EOF'
+[global]
+   workgroup = LAB-SAD
+   server string = Storage Backup Server
+   security = user
+   map to guest = bad user
+   
+[public]
+   comment = Public Share
+   path = /srv/samba/public
+   browseable = yes
+   guest ok = yes
+   read only = no
+   create mask = 0777
+   directory mask = 0777
+EOF
+
+(echo "backup123"; echo "backup123") | smbpasswd -a backup -s
+
+systemctl restart smbd
+systemctl enable smbd
+
+mkdir -p /srv/nfs/shared
+chmod 777 /srv/nfs/shared
+
+cat > /etc/exports << 'EOF'
+/srv/nfs/shared 192.168.56.0/24(rw,sync,no_subtree_check,no_root_squash)
+EOF
+
+exportfs -a
+systemctl restart nfs-kernel-server
+systemctl enable nfs-kernel-server
+
+cat >> /etc/hosts << 'EOF'
+192.168.56.10 ubuntu-server
+192.168.56.11 windows-server
+192.168.56.12 windows-client
+192.168.56.13 storage-backup
+192.168.56.20 kali-security
+EOF
+
+echo "✅ Storage Backup configurado"
+```
+
+</details>
+
+<details>
+<summary>📄 <strong>provision/windows-server.ps1</strong></summary>
+
+```powershell
+Write-Host "Configurando Windows Server..." -ForegroundColor Green
+
+tzutil /s "Romance Standard Time"
+Set-WinUserLanguageList -LanguageList es-ES -Force
+
+try {
+    $Password = ConvertTo-SecureString "Password123!" -AsPlainText -Force
+    New-LocalUser -Name "labadmin" -Password $Password -FullName "Lab Administrator" -ErrorAction Stop
+    Add-LocalGroupMember -Group "Administradores" -Member "labadmin" -ErrorAction Stop
+} catch { }
+
+Install-WindowsFeature -Name Web-Server -IncludeManagementTools -ErrorAction SilentlyContinue
+
+$htmlContent = @"
+<!DOCTYPE html>
+<html>
+<head><title>Windows Server - Lab SAD</title></head>
+<body>
+    <h1>Windows Server - Laboratorio SAD</h1>
+    <p>IIS funcionando correctamente</p>
+    <p>IP: 192.168.56.11</p>
+</body>
+</html>
+"@
+$htmlContent | Out-File -FilePath "C:\inetpub\wwwroot\index.html" -Encoding UTF8
+
+$sharePath = "C:\Shares\Public"
+if (!(Test-Path $sharePath)) {
+    New-Item -Path $sharePath -ItemType Directory -Force
+    New-SmbShare -Name "Public" -Path $sharePath -FullAccess "Everyone" -ErrorAction SilentlyContinue
+}
+
+netsh advfirewall firewall add rule name="Allow ICMPv4-In" protocol=icmpv4:8,any dir=in action=allow
+netsh advfirewall firewall add rule name="Allow HTTP" protocol=TCP dir=in localport=80 action=allow
+
+winrm quickconfig -quiet -force
+winrm set winrm/config/service/auth '@{Basic="true"}'
+winrm set winrm/config/service '@{AllowUnencrypted="true"}'
+
+$hostsFile = "C:\Windows\System32\drivers\etc\hosts"
+$hostsEntries = @"
+
+192.168.56.10 ubuntu-server
+192.168.56.11 windows-server
+192.168.56.12 windows-client
+192.168.56.13 storage-backup
+192.168.56.20 kali-security
+"@
+Add-Content -Path $hostsFile -Value $hostsEntries
+
+Add-Computer -WorkgroupName "LAB-SAD" -Force -ErrorAction SilentlyContinue
+
+Write-Host "✅ Windows Server configurado" -ForegroundColor Green
+```
+
+</details>
+
+<details>
+<summary>📄 <strong>provision/windows-client.ps1</strong></summary>
+
+```powershell
+Write-Host "Configurando Windows Client..." -ForegroundColor Green
+
+tzutil /s "Romance Standard Time"
+Set-WinUserLanguageList -LanguageList es-ES -Force
+
+try {
+    $Password = ConvertTo-SecureString "User123!" -AsPlainText -Force
+    New-LocalUser -Name "cliente" -Password $Password -FullName "Usuario Cliente" -ErrorAction Stop
+    Add-LocalGroupMember -Group "Usuarios" -Member "cliente" -ErrorAction Stop
+} catch { }
+
+Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server' -name "fDenyTSConnections" -value 0
+Enable-NetFirewallRule -DisplayGroup "Escritorio remoto"
+
+netsh advfirewall firewall add rule name="Allow ICMPv4-In" protocol=icmpv4:8,any dir=in action=allow
+
+winrm quickconfig -quiet -force
+
+$hostsFile = "C:\Windows\System32\drivers\etc\hosts"
+$hostsEntries = @"
+
+192.168.56.10 ubuntu-server
+192.168.56.11 windows-server
+192.168.56.12 windows-client
+192.168.56.13 storage-backup
+192.168.56.20 kali-security
+"@
+Add-Content -Path $hostsFile -Value $hostsEntries
+
+Add-Computer -WorkgroupName "LAB-SAD" -Force -ErrorAction SilentlyContinue
+
+Write-Host "✅ Windows Client configurado" -ForegroundColor Green
+```
+
+</details>
+
+**Hacer ejecutables los scripts**:
+```bash
+chmod +x provision/*.sh
+```
+
+### 4️⃣ Desplegar el laboratorio
+
+```bash
+# Todas las VMs (tarda ~30-60 min primera vez)
+vagrant up
+
+# Solo VMs Linux (más rápido para probar)
+vagrant up ubuntu-server kali-security storage-backup
+
+# Una VM específica
+vagrant up ubuntu-server
+```
+
+---
+
+## 🔑 Credenciales
+
+| VM | Usuario | Contraseña |
+|---|---|---|
+| Ubuntu Server | `admin` | `adminSAD2024!` |
+| Kali Security | `kali` | `kali` |
+| Storage Backup | `backup` | `backup123` |
+| Windows Server | `labadmin` | `Password123!` |
+| Windows Client | `cliente` | `User123!` |
+
+---
+
+## 🧪 Verificar Instalación
+
+```bash
+# Estado de VMs
+vagrant status
+
+# Test de conectividad
+ping 192.168.56.10
+ping 192.168.56.11
+ping 192.168.56.20
+
+# SSH a VMs Linux
+ssh admin@192.168.56.10
+ssh kali@192.168.56.20
+ssh backup@192.168.56.13
+
+# RDP a Windows (desde Linux)
+xfreerdp /u:labadmin /p:Password123! /v:192.168.56.11
+```
+
+---
+
+## 📚 Comandos Útiles
+
+```bash
+# Iniciar VM
+vagrant up nombre-vm
+
+# Detener VM
+vagrant halt nombre-vm
+
+# Suspender (más rápido)
+vagrant suspend nombre-vm
+
+# SSH automático
+vagrant ssh nombre-vm
+
+# Reiniciar
+vagrant reload nombre-vm
+
+# Destruir y recrear
+vagrant destroy nombre-vm
+vagrant up nombre-vm
+```
+
+---
+
+## 📖 Documentación Adicional
+
+- **README.md** - Guía completa
+- **CREDENCIALES.md** - Todas las credenciales
+- **troubleshooting.md** - Solución de problemas
+- **post-configuracion.md** - Pasos post-instalación
+- **configuracion-proxy.md** - Configurar proxy
+
+---
+
+## 🆘 Problemas Comunes
+
+**VM no arranca**: `vagrant halt vm && vagrant up vm`  
+**Error de red**: Verificar VirtualBox Host-Only Network  
+**SSH falla**: Usar `vagrant ssh nombre-vm` inicialmente  
+**Windows timeout**: Aumentar `winrm.timeout` en Vagrantfile
+
+Ver **troubleshooting.md** para más ayuda.
+
+---
+
+## ✅ Checklist
+
+- [ ] VirtualBox y Vagrant instalados
+- [ ] Directorio y archivos creados
+- [ ] Scripts de provisioning ejecutables
+- [ ] `vagrant up` ejecutado
+- [ ] Test de conectividad exitoso
+- [ ] SSH/RDP funcionando
+- [ ] Snapshots creados
+
+---
+
+**🎉 ¡Laboratorio listo para usar!**
+
+**Versión**: 2.0  
+**Fecha**: Octubre 2025

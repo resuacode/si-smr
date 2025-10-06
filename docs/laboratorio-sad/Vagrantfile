@@ -1,0 +1,181 @@
+# -*- mode: ruby -*-
+# vi: set ft=ruby :
+
+# Laboratorio SAD v2.0 - Configuración Simplificada
+# Configuración mínima pero funcional para exportar OVAs
+
+Vagrant.configure("2") do |config|
+  # Configuración global
+  config.vm.box_check_update = false
+  
+  # Red Host-Only común
+  NETWORK_BASE = "192.168.56"
+  
+  # ===========================================
+  # VM 1: Ubuntu Server (192.168.56.10)
+  # ===========================================
+  config.vm.define "ubuntu-server" do |ubuntu|
+    ubuntu.vm.box = "ubuntu/jammy64"
+    ubuntu.vm.hostname = "ubuntu-server"
+    ubuntu.vm.network "private_network", ip: "#{NETWORK_BASE}.10"
+    
+    # Port forwarding
+    ubuntu.vm.network "forwarded_port", guest: 22, host: 2210, id: "ssh"
+    ubuntu.vm.network "forwarded_port", guest: 80, host: 8080
+    ubuntu.vm.network "forwarded_port", guest: 3306, host: 3306
+    
+    ubuntu.vm.provider "virtualbox" do |vb|
+      vb.name = "SAD-Ubuntu-Server"
+      vb.memory = "1536"
+      vb.cpus = 1
+      vb.gui = false
+      vb.linked_clone = true
+      
+      # Optimizaciones
+      vb.customize ["modifyvm", :id, "--vram", "16"]
+      vb.customize ["modifyvm", :id, "--audio", "none"]
+      vb.customize ["modifyvm", :id, "--usb", "off"]
+    end
+    
+    # Script de provisioning
+    ubuntu.vm.provision "shell", path: "provision/ubuntu-server.sh"
+  end
+  
+  # ===========================================
+  # VM 2: Kali Security (192.168.56.20)
+  # ===========================================
+  config.vm.define "kali-security" do |kali|
+    kali.vm.box = "kalilinux/rolling"
+    kali.vm.hostname = "kali-security"
+    kali.vm.network "private_network", ip: "#{NETWORK_BASE}.20"
+    
+    # Port forwarding
+    kali.vm.network "forwarded_port", guest: 22, host: 2220, id: "ssh"
+    
+    kali.vm.provider "virtualbox" do |vb|
+      vb.name = "SAD-Kali-Security"
+      vb.memory = "2048"
+      vb.cpus = 1
+      vb.gui = false
+      vb.linked_clone = true
+      
+      vb.customize ["modifyvm", :id, "--vram", "16"]
+      vb.customize ["modifyvm", :id, "--audio", "none"]
+      vb.customize ["modifyvm", :id, "--usb", "off"]
+    end
+    
+    kali.vm.provision "shell", path: "provision/kali-security.sh"
+  end
+  
+  # ===========================================
+  # VM 3: Storage Backup (192.168.56.13)
+  # ===========================================
+  config.vm.define "storage-backup" do |storage|
+    storage.vm.box = "debian/bookworm64"
+    storage.vm.hostname = "storage-backup"
+    storage.vm.network "private_network", ip: "#{NETWORK_BASE}.13"
+    
+    # Port forwarding
+    storage.vm.network "forwarded_port", guest: 22, host: 2213, id: "ssh"
+    storage.vm.network "forwarded_port", guest: 445, host: 4445
+    storage.vm.network "forwarded_port", guest: 2049, host: 2049
+    
+    storage.vm.provider "virtualbox" do |vb|
+      vb.name = "SAD-Storage-Backup"
+      vb.memory = "1024"
+      vb.cpus = 1
+      vb.gui = false
+      vb.linked_clone = true
+      
+      vb.customize ["modifyvm", :id, "--vram", "12"]
+      vb.customize ["modifyvm", :id, "--audio", "none"]
+      vb.customize ["modifyvm", :id, "--usb", "off"]
+    end
+    
+    storage.vm.provision "shell", path: "provision/storage-backup.sh"
+  end
+  
+  # ===========================================
+  # VM 4: Windows Server (192.168.56.11)
+  # ===========================================
+  config.vm.define "windows-server" do |winserver|
+    winserver.vm.box = "gusztavvargadr/windows-server-2022-standard"
+    winserver.vm.hostname = "windows-server"
+    winserver.vm.network "private_network", ip: "#{NETWORK_BASE}.11"
+    
+    # Port forwarding
+    winserver.vm.network "forwarded_port", guest: 3389, host: 3389, id: "rdp"
+    winserver.vm.network "forwarded_port", guest: 80, host: 8081
+    winserver.vm.network "forwarded_port", guest: 445, host: 4446
+    
+    winserver.vm.provider "virtualbox" do |vb|
+      vb.name = "SAD-Windows-Server"
+      vb.memory = "2048"
+      vb.cpus = 1
+      vb.gui = false
+      vb.linked_clone = true
+      
+      vb.customize ["modifyvm", :id, "--vram", "16"]
+      vb.customize ["modifyvm", :id, "--audio", "none"]
+      vb.customize ["modifyvm", :id, "--usb", "off"]
+    end
+    
+    # Configuración WinRM
+    winserver.vm.communicator = "winrm"
+    winserver.winrm.username = "vagrant"
+    winserver.winrm.password = "vagrant"
+    winserver.winrm.timeout = 1800
+    
+    winserver.vm.provision "shell", path: "provision/windows-server.ps1"
+  end
+  
+  # ===========================================
+  # VM 5: Windows Client (192.168.56.12)
+  # ===========================================
+  config.vm.define "windows-client" do |winclient|
+    winclient.vm.box = "gusztavvargadr/windows-10-22h2-enterprise"
+    winclient.vm.hostname = "windows-client"
+    winclient.vm.network "private_network", ip: "#{NETWORK_BASE}.12"
+    
+    # Port forwarding
+    winclient.vm.network "forwarded_port", guest: 3389, host: 3390, id: "rdp"
+    
+    winclient.vm.provider "virtualbox" do |vb|
+      vb.name = "SAD-Windows-Client"
+      vb.memory = "2048"
+      vb.cpus = 1
+      vb.gui = false
+      vb.linked_clone = true
+      
+      vb.customize ["modifyvm", :id, "--vram", "16"]
+      vb.customize ["modifyvm", :id, "--audio", "none"]
+      vb.customize ["modifyvm", :id, "--usb", "off"]
+    end
+    
+    winclient.vm.communicator = "winrm"
+    winclient.winrm.username = "vagrant"
+    winclient.winrm.password = "vagrant"
+    winclient.winrm.timeout = 1800
+    
+    winclient.vm.provision "shell", path: "provision/windows-client.ps1"
+  end
+  
+  # Mensaje informativo
+  config.vm.post_up_message = <<-MSG
+  ============================================
+  🎉 Laboratorio SAD v2.0 desplegado
+  ============================================
+  
+  VMs disponibles:
+  - Ubuntu Server:    192.168.56.10 (SSH: localhost:2210)
+  - Windows Server:   192.168.56.11 (RDP: localhost:3389)
+  - Windows Client:   192.168.56.12 (RDP: localhost:3390)
+  - Storage Backup:   192.168.56.13 (SSH: localhost:2213)
+  - Kali Security:    192.168.56.20 (SSH: localhost:2220)
+  
+  📋 Credenciales en CREDENCIALES.md
+  🧪 Test de conectividad: ./test-conectividad.sh
+  📚 Documentación completa en README.md
+  ============================================
+  MSG
+end
