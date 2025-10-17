@@ -32,3 +32,1278 @@ En este tema veremos como gestionar los dispositivos de almacenamiento y aplicar
       - GFS
    - Realización de copias de seguridad
    - Creación y restauración de imágenes de respaldo de sistemas en funcionamiento
+
+## Ejercicios Prácticos
+
+A continuación se presentan ejercicios prácticos para aplicar los conocimientos adquiridos en este tema. Utiliza las máquinas virtuales del laboratorio para realizarlos.
+
+:::info Máquinas del Laboratorio
+Para estos ejercicios utilizarás las siguientes máquinas virtuales:
+- **Ubuntu Server** (192.168.56.10) - admin/adminSAD2024!
+- **Storage Backup** (192.168.56.13) - backup/backup123
+- **Windows Server** (192.168.56.11) - labadmin/Password123!
+- **Windows Client** (192.168.56.12) - cliente/User123!
+
+Asegúrate de tener las máquinas funcionales antes de comenzar.
+:::
+
+### Ejercicio 1: Medición del rendimiento de almacenamiento con dd
+
+**Objetivo:** Medir la velocidad de lectura y escritura del disco en Ubuntu Server.
+
+**Tareas:**
+1. Conéctate a Ubuntu Server por SSH
+2. Mide la velocidad de escritura creando un archivo de prueba de 1GB
+3. Mide la velocidad de lectura del disco
+4. Documenta los resultados obtenidos
+
+<details>
+<summary>Ver solución</summary>
+
+```bash
+# Conectar a Ubuntu Server
+ssh admin@192.168.56.10
+
+# Medir velocidad de escritura (1GB)
+dd if=/dev/zero of=/tmp/test.img bs=1M count=1024 oflag=direct
+
+# Resultado esperado: Velocidad en MB/s y tiempo total
+
+# Medir velocidad de lectura
+dd if=/tmp/test.img of=/dev/null bs=1M iflag=direct
+
+# Limpiar archivo de prueba
+rm /tmp/test.img
+
+# Medir con información de progreso
+dd if=/dev/zero of=/tmp/test.img bs=1M count=1024 oflag=direct status=progress
+```
+
+**Análisis de resultados:**
+- La velocidad de escritura típica en un disco duro mecánico está entre 50-150 MB/s
+- Los SSD pueden alcanzar 200-550 MB/s
+- La opción `oflag=direct` evita el uso de caché para mediciones más precisas
+- El parámetro `status=progress` muestra el progreso en tiempo real
+
+</details>
+
+---
+
+### Ejercicio 2: Configuración de compartición NFS
+
+**Objetivo:** Configurar un recurso compartido NFS en Storage Backup y montarlo en Ubuntu Server.
+
+**Tareas:**
+1. Verifica que el servicio NFS esté activo en Storage Backup
+2. Monta el recurso NFS compartido en Ubuntu Server
+3. Crea un archivo de prueba desde Ubuntu Server
+4. Verifica que el archivo sea accesible desde Storage Backup
+
+<details>
+<summary>Ver solución</summary>
+
+```bash
+# En Storage Backup (192.168.56.13)
+ssh backup@192.168.56.13
+
+# Verificar servicio NFS
+sudo systemctl status nfs-kernel-server
+
+# Ver exportaciones disponibles
+showmount -e localhost
+
+# En Ubuntu Server (192.168.56.10)
+ssh admin@192.168.56.10
+
+# Instalar cliente NFS si no está instalado
+sudo apt install -y nfs-common
+
+# Crear punto de montaje
+sudo mkdir -p /mnt/nfs-storage
+
+# Montar recurso compartido
+sudo mount -t nfs 192.168.56.13:/srv/nfs/shared /mnt/nfs-storage
+
+# Verificar montaje
+df -h | grep nfs
+
+# Crear archivo de prueba
+echo "Archivo de prueba desde Ubuntu Server" | sudo tee /mnt/nfs-storage/prueba.txt
+
+# Ver contenido
+ls -la /mnt/nfs-storage/
+
+# Para montaje permanente, añadir a /etc/fstab:
+echo "192.168.56.13:/srv/nfs/shared /mnt/nfs-storage nfs defaults 0 0" | sudo tee -a /etc/fstab
+
+# Verificar desde Storage Backup
+ssh backup@192.168.56.13
+cat /srv/nfs/shared/prueba.txt
+```
+
+**Verificación:**
+- El archivo debe ser visible en ambas máquinas
+- Los permisos deben permitir lectura/escritura según configuración NFS
+- El montaje debe persistir tras reinicio si se añadió a fstab
+
+</details>
+
+---
+
+### Ejercicio 3: Configuración de recurso compartido SMB/CIFS
+
+**Objetivo:** Acceder al recurso compartido Samba en Storage Backup desde Ubuntu Server.
+
+**Tareas:**
+1. Lista los recursos compartidos disponibles en Storage Backup
+2. Monta el recurso compartido Samba en Ubuntu Server
+3. Crea archivos de prueba y verifica permisos
+4. Configura el montaje automático
+
+<details>
+<summary>Ver solución</summary>
+
+```bash
+# En Ubuntu Server
+ssh admin@192.168.56.10
+
+# Instalar cliente Samba
+sudo apt install -y cifs-utils smbclient
+
+# Listar recursos compartidos disponibles
+smbclient -L //192.168.56.13 -U backup
+
+# Crear punto de montaje
+sudo mkdir -p /mnt/samba-storage
+
+# Montar recurso compartido
+sudo mount -t cifs //192.168.56.13/public /mnt/samba-storage \
+  -o username=backup,password=backup123
+
+# Verificar montaje
+df -h | grep cifs
+
+# Crear archivo de prueba
+echo "Prueba desde Ubuntu via SMB" | sudo tee /mnt/samba-storage/test-smb.txt
+
+# Listar archivos
+ls -la /mnt/samba-storage/
+
+# Montaje permanente con credenciales seguras
+# Crear archivo de credenciales
+sudo mkdir -p /etc/samba/credentials
+echo "username=backup" | sudo tee /etc/samba/credentials/storage
+echo "password=backup123" | sudo tee -a /etc/samba/credentials/storage
+sudo chmod 600 /etc/samba/credentials/storage
+
+# Añadir a fstab
+echo "//192.168.56.13/public /mnt/samba-storage cifs credentials=/etc/samba/credentials/storage 0 0" | sudo tee -a /etc/fstab
+
+# Probar montaje desde fstab
+sudo umount /mnt/samba-storage
+sudo mount -a
+```
+
+**Notas de seguridad:**
+- Las credenciales deben estar en un archivo protegido (chmod 600)
+- Nunca incluir contraseñas directamente en fstab
+- Verificar permisos del archivo de credenciales
+
+</details>
+
+---
+
+### Ejercicio 4: Copias de seguridad con rsync
+
+**Objetivo:** Realizar copias de seguridad incrementales del directorio web de Ubuntu Server hacia Storage Backup.
+
+**Tareas:**
+1. Crea algunos archivos de prueba en /var/www/html
+2. Realiza una copia inicial con rsync hacia Storage Backup
+3. Modifica algunos archivos y añade otros nuevos
+4. Realiza una copia incremental y verifica que solo copia los cambios
+
+<details>
+<summary>Ver solución</summary>
+
+```bash
+# En Ubuntu Server
+ssh admin@192.168.56.10
+
+# Crear archivos de prueba en el directorio web
+sudo mkdir -p /var/www/html/prueba
+echo "<h1>Página 1</h1>" | sudo tee /var/www/html/prueba/index.html
+echo "<h1>Página 2</h1>" | sudo tee /var/www/html/prueba/page2.html
+echo "Datos importantes" | sudo tee /var/www/html/prueba/data.txt
+
+# Copia inicial completa a Storage Backup
+rsync -avz --progress /var/www/html/ backup@192.168.56.13:/home/backup/backups/web-inicial/
+
+# Ver estadísticas de la copia
+# Deberá mostrar todos los archivos copiados
+
+# Modificar algunos archivos
+echo "<h1>Página 1 Modificada</h1>" | sudo tee /var/www/html/prueba/index.html
+echo "Más datos" | sudo tee /var/www/html/prueba/data2.txt
+
+# Copia incremental (solo cambios)
+rsync -avz --progress --stats /var/www/html/ backup@192.168.56.13:/home/backup/backups/web-incremental/
+
+# Opciones útiles:
+# -a: modo archivo (preserva permisos, tiempos, etc.)
+# -v: verbose (muestra detalles)
+# -z: compresión durante transferencia
+# --progress: muestra progreso
+# --stats: estadísticas al final
+# --delete: elimina archivos en destino que no existen en origen
+
+# Copia con exclusiones
+rsync -avz --exclude='*.log' --exclude='cache/' \
+  /var/www/html/ backup@192.168.56.13:/home/backup/backups/web-filtered/
+
+# Verificar en Storage Backup
+ssh backup@192.168.56.13
+ls -la /home/backup/backups/web-inicial/prueba/
+cat /home/backup/backups/web-inicial/prueba/index.html
+```
+
+**Análisis:**
+- La primera copia transfiere todos los archivos
+- Las copias incrementales solo transfieren archivos nuevos o modificados
+- La opción --delete sincroniza eliminaciones (úsala con precaución)
+- Rsync es muy eficiente para backups sobre red
+
+</details>
+
+---
+
+### Ejercicio 5: Backup comprimido con tar
+
+**Objetivo:** Crear copias de seguridad comprimidas de directorios importantes y programar su ejecución automática.
+
+**Tareas:**
+1. Crea un backup comprimido del directorio /etc
+2. Verifica la integridad del archivo generado
+3. Extrae un archivo específico del backup
+4. Programa un backup automático semanal con cron
+
+<details>
+<summary>Ver solución</summary>
+
+```bash
+# En Ubuntu Server
+ssh admin@192.168.56.10
+
+# Crear directorio para backups
+sudo mkdir -p /backup/tar
+
+# Backup comprimido de /etc
+sudo tar -czf /backup/tar/etc-backup-$(date +%Y%m%d).tar.gz /etc
+
+# Verificar el archivo creado
+ls -lh /backup/tar/
+
+# Listar contenido del backup sin extraer
+sudo tar -tzf /backup/tar/etc-backup-*.tar.gz | head -20
+
+# Verificar integridad
+sudo tar -tzf /backup/tar/etc-backup-*.tar.gz > /dev/null
+echo "Código de salida: $?"  # 0 = OK
+
+# Extraer un archivo específico
+sudo tar -xzf /backup/tar/etc-backup-*.tar.gz -C /tmp etc/hostname
+cat /tmp/etc/hostname
+
+# Backup con exclusiones
+sudo tar -czf /backup/tar/etc-filtered-$(date +%Y%m%d).tar.gz \
+  --exclude='*.log' \
+  --exclude='/etc/ssl/private/*' \
+  /etc
+
+# Crear script de backup automatizado
+sudo tee /usr/local/bin/backup-etc.sh << 'EOF'
+#!/bin/bash
+FECHA=$(date +%Y%m%d_%H%M%S)
+BACKUP_DIR="/backup/tar"
+mkdir -p $BACKUP_DIR
+
+# Realizar backup
+tar -czf $BACKUP_DIR/etc-$FECHA.tar.gz /etc 2>/var/log/backup-etc.log
+
+# Eliminar backups antiguos (más de 30 días)
+find $BACKUP_DIR -name "etc-*.tar.gz" -mtime +30 -delete
+
+# Log
+echo "Backup completado: $FECHA" >> /var/log/backup-etc.log
+EOF
+
+# Dar permisos de ejecución
+sudo chmod +x /usr/local/bin/backup-etc.sh
+
+# Probar el script
+sudo /usr/local/bin/backup-etc.sh
+
+# Programar con cron (todos los domingos a las 2:00 AM)
+echo "0 2 * * 0 /usr/local/bin/backup-etc.sh" | sudo crontab -
+
+# Verificar tareas programadas
+sudo crontab -l
+```
+
+**Verificación:**
+- El archivo tar.gz debe crearse correctamente
+- La integridad debe verificarse sin errores
+- Los archivos antiguos deben eliminarse automáticamente
+- El cron debe ejecutarse según programación
+
+</details>
+
+---
+
+### Ejercicio 6: Snapshot con LVM (simulación)
+
+**Objetivo:** Crear y gestionar snapshots de volúmenes lógicos para backups consistentes.
+
+**Tareas:**
+1. Verifica los volúmenes LVM disponibles en Ubuntu Server
+2. Crea un archivo de prueba en el volumen
+3. Crea un snapshot del volumen
+4. Modifica el archivo original
+5. Monta el snapshot y verifica que contiene la versión anterior
+
+<details>
+<summary>Ver solución</summary>
+
+```bash
+# En Ubuntu Server
+ssh admin@192.168.56.10
+
+# Listar volúmenes lógicos
+sudo lvdisplay
+sudo vgdisplay
+sudo pvdisplay
+
+# Ver espacio disponible en el grupo de volúmenes
+sudo vgs
+
+# Crear directorio de prueba si no existe
+sudo mkdir -p /datos-prueba
+
+# Crear archivo de prueba
+echo "Versión original del archivo" | sudo tee /datos-prueba/importante.txt
+
+# NOTA: Si el sistema no tiene LVM configurado, podemos simular
+# el proceso documentando los comandos que se usarían:
+
+# Comandos para crear snapshot (si LVM está disponible):
+# sudo lvcreate -L 1G -s -n datos-snap /dev/vg0/datos
+
+# Montar el snapshot
+# sudo mkdir -p /mnt/snapshot
+# sudo mount /dev/vg0/datos-snap /mnt/snapshot
+
+# Modificar archivo original
+echo "Versión modificada del archivo" | sudo tee /datos-prueba/importante.txt
+
+# Ver la diferencia
+# Archivo original modificado:
+cat /datos-prueba/importante.txt
+
+# Archivo en snapshot (versión anterior):
+# cat /mnt/snapshot/importante.txt
+
+# Restaurar desde snapshot si es necesario
+# sudo rsync -av /mnt/snapshot/ /datos-prueba/
+
+# Desmontar y eliminar snapshot
+# sudo umount /mnt/snapshot
+# sudo lvremove /dev/vg0/datos-snap
+
+# ALTERNATIVA: Simular con copias de respaldo
+# Crear backup antes de cambios
+sudo tar -czf /backup/datos-antes.tar.gz /datos-prueba/
+
+# Modificar archivos
+echo "Cambios realizados" | sudo tee -a /datos-prueba/importante.txt
+
+# Crear backup después de cambios
+sudo tar -czf /backup/datos-despues.tar.gz /datos-prueba/
+
+# Restaurar versión anterior si es necesario
+sudo tar -xzf /backup/datos-antes.tar.gz -C /
+```
+
+**Conceptos clave:**
+- Los snapshots LVM capturan el estado del volumen en un momento específico
+- Son útiles para backups consistentes de sistemas en ejecución
+- Permiten recuperación rápida a un punto anterior
+- El snapshot consume espacio solo para los cambios realizados después de su creación
+
+</details>
+
+---
+
+### Ejercicio 7: Backup de base de datos MySQL
+
+**Objetivo:** Realizar copias de seguridad de la base de datos MySQL y practicar su restauración.
+
+**Tareas:**
+1. Conecta a la base de datos MySQL
+2. Crea una tabla de prueba con datos
+3. Realiza un backup con mysqldump
+4. Elimina la tabla
+5. Restaura desde el backup
+
+<details>
+<summary>Ver solución</summary>
+
+```bash
+# En Ubuntu Server
+ssh admin@192.168.56.10
+
+# Conectar a MySQL
+mysql -u labsad -p labsad
+# Contraseña: labsad123
+
+# Crear tabla de prueba
+CREATE TABLE IF NOT EXISTS empleados (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    nombre VARCHAR(100),
+    departamento VARCHAR(50),
+    salario DECIMAL(10,2)
+);
+
+# Insertar datos de prueba
+INSERT INTO empleados (nombre, departamento, salario) VALUES
+('Juan Pérez', 'IT', 45000.00),
+('María García', 'RRHH', 38000.00),
+('Carlos López', 'IT', 52000.00),
+('Ana Martínez', 'Ventas', 41000.00);
+
+# Verificar datos
+SELECT * FROM empleados;
+
+# Salir de MySQL
+EXIT;
+
+# Backup completo de la base de datos
+mysqldump -u labsad -p labsad > /tmp/labsad-backup-$(date +%Y%m%d).sql
+# Contraseña: labsad123
+
+# Backup con compresión
+mysqldump -u labsad -p labsad | gzip > /tmp/labsad-backup-$(date +%Y%m%d).sql.gz
+
+# Backup de tabla específica
+mysqldump -u labsad -p labsad empleados > /tmp/empleados-backup.sql
+
+# Backup de todas las bases de datos
+mysqldump -u labsad -p --all-databases > /tmp/all-databases-backup.sql
+
+# Copiar backup a Storage Backup
+scp /tmp/labsad-backup-*.sql backup@192.168.56.13:/home/backup/backups/mysql/
+
+# Simular pérdida de datos
+mysql -u labsad -p labsad -e "DROP TABLE empleados;"
+
+# Verificar que la tabla no existe
+mysql -u labsad -p labsad -e "SHOW TABLES;"
+
+# Restaurar desde backup
+mysql -u labsad -p labsad < /tmp/labsad-backup-*.sql
+
+# Verificar restauración
+mysql -u labsad -p labsad -e "SELECT * FROM empleados;"
+
+# Script de backup automático
+sudo tee /usr/local/bin/backup-mysql.sh << 'EOF'
+#!/bin/bash
+FECHA=$(date +%Y%m%d_%H%M%S)
+BACKUP_DIR="/backup/mysql"
+mkdir -p $BACKUP_DIR
+
+# Backup con compresión
+mysqldump -u labsad -plabsad123 labsad | gzip > $BACKUP_DIR/labsad-$FECHA.sql.gz
+
+# Copiar a servidor remoto
+scp $BACKUP_DIR/labsad-$FECHA.sql.gz backup@192.168.56.13:/home/backup/backups/mysql/
+
+# Eliminar backups locales antiguos (7 días)
+find $BACKUP_DIR -name "labsad-*.sql.gz" -mtime +7 -delete
+
+echo "Backup MySQL completado: $FECHA" >> /var/log/backup-mysql.log
+EOF
+
+sudo chmod +x /usr/local/bin/backup-mysql.sh
+
+# Programar backup diario a las 3:00 AM
+echo "0 3 * * * /usr/local/bin/backup-mysql.sh" | sudo crontab -
+```
+
+**Mejores prácticas:**
+- Usar `--single-transaction` para bases de datos InnoDB (backup consistente sin bloqueo)
+- Comprimir backups grandes para ahorrar espacio
+- Almacenar backups en ubicación remota
+- Probar restauraciones periódicamente
+- Automatizar con cron
+
+</details>
+
+---
+
+### Ejercicio 8: Copias de seguridad en Windows Server
+
+**Objetivo:** Realizar copias de seguridad usando Robocopy y PowerShell en Windows Server.
+
+**Tareas:**
+1. Crea una estructura de directorios con archivos de prueba
+2. Realiza una copia de seguridad con Robocopy
+3. Modifica algunos archivos
+4. Realiza una copia incremental
+5. Crea un script de backup automatizado
+
+<details>
+<summary>Ver solución</summary>
+
+```powershell
+# Conectar a Windows Server vía RDP
+# Usuario: labadmin / Password123!
+
+# Abrir PowerShell como Administrador
+
+# Crear estructura de prueba
+New-Item -ItemType Directory -Path C:\Datos -Force
+New-Item -ItemType Directory -Path C:\Backup -Force
+
+# Crear archivos de prueba
+"Documento 1" | Out-File C:\Datos\doc1.txt
+"Documento 2" | Out-File C:\Datos\doc2.txt
+"Datos importantes" | Out-File C:\Datos\importante.txt
+
+# Backup con Robocopy (modo espejo)
+robocopy C:\Datos C:\Backup\Datos /MIR /LOG:C:\Backup\backup.log
+
+# Ver el log
+Get-Content C:\Backup\backup.log
+
+# Modificar archivos
+"Documento 1 modificado" | Out-File C:\Datos\doc1.txt
+"Nuevo documento" | Out-File C:\Datos\doc3.txt
+
+# Backup incremental (solo cambios)
+robocopy C:\Datos C:\Backup\Datos /MIR /Z /R:3 /W:5 /LOG+:C:\Backup\backup.log
+
+# Opciones útiles de Robocopy:
+# /MIR - Modo espejo (copia y elimina)
+# /Z - Modo reiniciable (útil para redes inestables)
+# /R:n - Reintentos en caso de error
+# /W:n - Tiempo de espera entre reintentos
+# /LOG - Crear archivo de log
+# /LOG+ - Añadir a log existente
+# /XD - Excluir directorios
+# /XF - Excluir archivos
+
+# Backup excluyendo ciertos archivos
+robocopy C:\Datos C:\Backup\Datos-Filtered /MIR /XF *.tmp *.log
+
+# Comprimir backup
+Compress-Archive -Path C:\Datos\* -DestinationPath C:\Backup\datos-$(Get-Date -Format 'yyyyMMdd').zip
+
+# Script de backup automatizado
+$ScriptContent = @'
+# Script de backup automatizado
+$Origen = "C:\Datos"
+$Destino = "C:\Backup\Datos"
+$Fecha = Get-Date -Format "yyyyMMdd_HHmmss"
+$LogFile = "C:\Backup\backup-$Fecha.log"
+
+# Crear directorio si no existe
+New-Item -ItemType Directory -Path $Destino -Force | Out-Null
+
+# Realizar backup
+robocopy $Origen $Destino /MIR /Z /R:3 /W:5 /LOG:$LogFile
+
+# Verificar resultado
+if ($LASTEXITCODE -le 7) {
+    Write-Host "Backup completado exitosamente"
+    "Backup OK - $Fecha" | Out-File "C:\Backup\status.log" -Append
+} else {
+    Write-Host "Error en backup"
+    "Backup ERROR - $Fecha" | Out-File "C:\Backup\status.log" -Append
+}
+
+# Eliminar backups antiguos (30 días)
+Get-ChildItem "C:\Backup" -Filter "backup-*.log" | 
+    Where-Object { $_.LastWriteTime -lt (Get-Date).AddDays(-30) } | 
+    Remove-Item -Force
+'@
+
+$ScriptContent | Out-File C:\Scripts\backup-automatico.ps1
+
+# Programar tarea (ejecutar diariamente a las 2:00 AM)
+$Action = New-ScheduledTaskAction -Execute "PowerShell.exe" `
+    -Argument "-NoProfile -ExecutionPolicy Bypass -File C:\Scripts\backup-automatico.ps1"
+
+$Trigger = New-ScheduledTaskTrigger -Daily -At 2:00AM
+
+$Principal = New-ScheduledTaskPrincipal -UserId "SYSTEM" -LogonType ServiceAccount
+
+Register-ScheduledTask -TaskName "BackupDiario" `
+    -Action $Action `
+    -Trigger $Trigger `
+    -Principal $Principal `
+    -Description "Backup automático de datos"
+
+# Ver tareas programadas
+Get-ScheduledTask | Where-Object {$_.TaskName -eq "BackupDiario"}
+```
+
+**Códigos de salida de Robocopy:**
+- 0 = Sin cambios, no se copió nada
+- 1 = Archivos copiados exitosamente
+- 2 = Archivos/directorios extra en destino
+- 4 = Algunos archivos no coinciden
+- 8 = Algunos archivos no se pudieron copiar
+- 16 = Error grave
+
+</details>
+
+---
+
+### Ejercicio 9: Crear imagen del sistema con Clonezilla
+
+**Objetivo:** Crear una imagen de respaldo de Ubuntu Server (simulación documentada).
+
+**Tareas:**
+1. Documenta el proceso para crear una imagen con Clonezilla
+2. Especifica las opciones de configuración recomendadas
+3. Describe el procedimiento de restauración
+4. Calcula el espacio necesario para la imagen
+
+<details>
+<summary>Ver solución</summary>
+
+**Preparación del sistema antes de crear la imagen:**
+
+```bash
+# En Ubuntu Server
+ssh admin@192.168.56.10
+
+# Limpiar archivos temporales
+sudo apt-get clean
+sudo rm -rf /tmp/*
+sudo rm -rf /var/tmp/*
+
+# Limpiar logs antiguos
+sudo journalctl --vacuum-time=7d
+
+# Ver espacio usado
+df -h
+
+# Verificar tamaño total de datos
+sudo du -sh /
+```
+
+**Proceso de creación de imagen con Clonezilla:**
+
+1. **Arrancar desde Clonezilla Live:**
+   - Descargar Clonezilla Live ISO
+   - Crear USB booteable o arrancar desde ISO en VirtualBox
+   - Arrancar la VM desde el medio de Clonezilla
+
+2. **Configuración inicial:**
+   - Seleccionar idioma: Español
+   - Seleccionar distribución de teclado: es
+   - Seleccionar modo: "device-image"
+
+3. **Ubicación de la imagen:**
+   - Seleccionar: "local_dev" (disco local)
+   - O: "ssh_server" (guardar en Storage Backup)
+   - Para SSH: 192.168.56.13, usuario: backup
+
+4. **Modo de operación:**
+   - Seleccionar: "Beginner mode" (principiantes)
+   - O: "Expert mode" (para más opciones)
+
+5. **Tipo de backup:**
+   - Seleccionar: "savedisk" (disco completo)
+   - Nombre de imagen: ubuntu-server-$(date +%Y%m%d)
+
+6. **Opciones recomendadas:**
+   - Compresión: -z1p (paralela, rápida)
+   - Verificación: Sí (recomendado)
+   - Cifrado: Opcional con -e (usar para datos sensibles)
+
+7. **Iniciar proceso:**
+   - Confirmar y esperar finalización
+   - Tiempo estimado: 30-60 minutos dependiendo del tamaño
+
+**Comando equivalente en línea de comandos:**
+
+```bash
+# Crear imagen desde sistema en funcionamiento
+sudo /usr/sbin/ocs-sr -q2 -c -j2 -z1p -i 4096 -fsck-src-part -p true \
+  savedisk ubuntu-server-backup sda
+
+# Opciones:
+# -q2: prioridad normal
+# -c: verificar la imagen después de crearla
+# -j2: usar compresión paralela
+# -z1p: compresión gzip paralela
+# -i 4096: tamaño de bloque
+# -fsck-src-part: verificar partición antes
+# -p true: guardar MBR y tabla de particiones
+```
+
+**Cálculo de espacio necesario:**
+
+```bash
+# Espacio usado en el sistema
+df -h /
+
+# Espacio que ocupará la imagen (aproximado)
+# Con compresión -z1p: 30-50% del espacio usado
+# Ejemplo: Sistema de 20GB usado = imagen de 6-10GB
+
+# Verificar espacio disponible en destino
+ssh backup@192.168.56.13 "df -h /home/backup"
+```
+
+**Proceso de restauración:**
+
+1. Arrancar desde Clonezilla Live
+2. Seleccionar: "device-image"
+3. Seleccionar ubicación de la imagen
+4. Seleccionar modo: "restoredisk"
+5. Seleccionar imagen a restaurar
+6. Seleccionar disco de destino
+7. ADVERTENCIA: Esto borrará todo el contenido del disco
+8. Confirmar y esperar finalización
+
+**Verificación post-restauración:**
+
+```bash
+# Después de restaurar y arrancar el sistema
+# Verificar integridad del sistema de archivos
+sudo fsck -n /dev/sda1
+
+# Verificar servicios
+sudo systemctl status apache2
+sudo systemctl status mysql
+
+# Verificar logs
+sudo journalctl -xe
+```
+
+**Documentación de la imagen:**
+
+```markdown
+# Imagen de Ubuntu Server - 2025-10-17
+
+## Información
+- Fecha: 2025-10-17 14:30
+- Sistema: Ubuntu Server 22.04 LTS
+- Hostname: ubuntu-server
+- Tamaño original: 20 GB
+- Tamaño imagen: 7.5 GB (comprimida)
+- Ubicación: //192.168.56.13/backups/images/
+
+## Contenido
+- Apache 2.4.52
+- MySQL 8.0.35
+- PHP 8.1
+- Sitio web de prueba
+
+## Restauración
+1. Arrancar desde Clonezilla Live
+2. Seleccionar imagen: ubuntu-server-20251017
+3. Restaurar en /dev/sda
+4. Reconfigurar red si es necesario
+5. Tiempo estimado: 20-30 minutos
+```
+
+</details>
+
+---
+
+### Ejercicio 10: Implementar esquema de rotación GFS
+
+**Objetivo:** Diseñar e implementar un esquema de rotación Grandfather-Father-Son para los backups.
+
+**Tareas:**
+1. Diseña una política GFS para Ubuntu Server
+2. Crea la estructura de directorios necesaria
+3. Implementa scripts para backups diarios, semanales y mensuales
+4. Programa la ejecución automática con cron
+5. Documenta la política de retención
+
+<details>
+<summary>Ver solución</summary>
+
+```bash
+# En Ubuntu Server
+ssh admin@192.168.56.10
+
+# Crear estructura de directorios para GFS
+sudo mkdir -p /backup/gfs/{daily,weekly,monthly}
+sudo mkdir -p /backup/gfs/logs
+
+# Crear script de backup GFS
+sudo tee /usr/local/bin/backup-gfs.sh << 'EOF'
+#!/bin/bash
+
+# Configuración
+BACKUP_ROOT="/backup/gfs"
+SOURCE_DIR="/var/www/html"
+LOG_FILE="$BACKUP_ROOT/logs/backup-$(date +%Y%m%d).log"
+REMOTE_HOST="backup@192.168.56.13"
+REMOTE_DIR="/home/backup/backups/gfs"
+
+# Función de log
+log() {
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')] $1" | tee -a "$LOG_FILE"
+}
+
+# Determinar tipo de backup
+DAY_OF_WEEK=$(date +%u)  # 1=Lunes, 7=Domingo
+DAY_OF_MONTH=$(date +%d)
+
+if [ "$DAY_OF_MONTH" -eq "01" ]; then
+    # Backup mensual (primer día del mes) - ABUELO
+    BACKUP_TYPE="monthly"
+    RETENTION_DAYS=365  # 12 meses
+    log "Iniciando backup MENSUAL (Abuelo)"
+elif [ "$DAY_OF_WEEK" -eq "7" ]; then
+    # Backup semanal (domingos) - PADRE
+    BACKUP_TYPE="weekly"
+    RETENTION_DAYS=56  # 8 semanas
+    log "Iniciando backup SEMANAL (Padre)"
+else
+    # Backup diario - HIJO
+    BACKUP_TYPE="daily"
+    RETENTION_DAYS=14  # 2 semanas
+    log "Iniciando backup DIARIO (Hijo)"
+fi
+
+FECHA=$(date +%Y%m%d_%H%M%S)
+BACKUP_DIR="$BACKUP_ROOT/$BACKUP_TYPE"
+BACKUP_FILE="$BACKUP_DIR/backup-$BACKUP_TYPE-$FECHA.tar.gz"
+
+# Crear backup
+log "Creando backup en: $BACKUP_FILE"
+if tar -czf "$BACKUP_FILE" "$SOURCE_DIR" 2>> "$LOG_FILE"; then
+    log "Backup creado exitosamente"
+    
+    # Calcular checksum
+    md5sum "$BACKUP_FILE" > "$BACKUP_FILE.md5"
+    log "Checksum generado"
+    
+    # Copiar a servidor remoto
+    log "Copiando a servidor remoto..."
+    scp "$BACKUP_FILE" "$BACKUP_FILE.md5" \
+        "$REMOTE_HOST:$REMOTE_DIR/$BACKUP_TYPE/" 2>> "$LOG_FILE"
+    
+    if [ $? -eq 0 ]; then
+        log "Copia remota completada"
+    else
+        log "ERROR: Fallo en copia remota"
+    fi
+    
+    # Eliminar backups antiguos según retención
+    log "Eliminando backups antiguos (más de $RETENTION_DAYS días)"
+    find "$BACKUP_DIR" -name "backup-$BACKUP_TYPE-*.tar.gz" \
+        -mtime +$RETENTION_DAYS -delete
+    find "$BACKUP_DIR" -name "backup-$BACKUP_TYPE-*.md5" \
+        -mtime +$RETENTION_DAYS -delete
+    
+    # Estadísticas
+    BACKUP_SIZE=$(du -h "$BACKUP_FILE" | cut -f1)
+    log "Tamaño del backup: $BACKUP_SIZE"
+    log "Backups actuales en $BACKUP_TYPE: $(ls -1 $BACKUP_DIR/*.tar.gz 2>/dev/null | wc -l)"
+    
+else
+    log "ERROR: Fallo al crear backup"
+    exit 1
+fi
+
+log "Proceso completado"
+EOF
+
+# Dar permisos de ejecución
+sudo chmod +x /usr/local/bin/backup-gfs.sh
+
+# Crear script de verificación de backups
+sudo tee /usr/local/bin/verify-backups.sh << 'EOF'
+#!/bin/bash
+
+BACKUP_ROOT="/backup/gfs"
+ERROR_COUNT=0
+
+echo "=== Verificación de Backups GFS ==="
+echo "Fecha: $(date)"
+echo ""
+
+# Verificar cada tipo de backup
+for TYPE in daily weekly monthly; do
+    echo "--- Backups $TYPE ---"
+    BACKUP_DIR="$BACKUP_ROOT/$TYPE"
+    
+    if [ -d "$BACKUP_DIR" ]; then
+        COUNT=$(ls -1 "$BACKUP_DIR"/*.tar.gz 2>/dev/null | wc -l)
+        echo "Cantidad: $COUNT backups"
+        
+        # Verificar últimos 3 backups
+        for BACKUP in $(ls -t "$BACKUP_DIR"/*.tar.gz 2>/dev/null | head -3); do
+            if [ -f "$BACKUP.md5" ]; then
+                if cd "$(dirname $BACKUP)" && md5sum -c "$(basename $BACKUP).md5" >/dev/null 2>&1; then
+                    echo "✓ $(basename $BACKUP) - OK"
+                else
+                    echo "✗ $(basename $BACKUP) - FALLO"
+                    ERROR_COUNT=$((ERROR_COUNT + 1))
+                fi
+            else
+                echo "⚠ $(basename $BACKUP) - Sin checksum"
+            fi
+        done
+    else
+        echo "Directorio no encontrado"
+    fi
+    echo ""
+done
+
+if [ $ERROR_COUNT -gt 0 ]; then
+    echo "ADVERTENCIA: Se encontraron $ERROR_COUNT errores"
+    exit 1
+else
+    echo "Todos los backups verificados correctamente"
+fi
+EOF
+
+sudo chmod +x /usr/local/bin/verify-backups.sh
+
+# Programar con cron
+sudo tee /etc/cron.d/backup-gfs << 'EOF'
+# Backup GFS automatizado
+# Ejecutar diariamente a las 2:00 AM
+0 2 * * * root /usr/local/bin/backup-gfs.sh
+
+# Verificación de backups los lunes a las 8:00 AM
+0 8 * * 1 root /usr/local/bin/verify-backups.sh
+EOF
+
+# Verificar configuración de cron
+sudo cat /etc/cron.d/backup-gfs
+
+# Probar el script manualmente
+sudo /usr/local/bin/backup-gfs.sh
+
+# Ver el log
+sudo tail -50 /backup/gfs/logs/backup-*.log
+
+# Verificar backups creados
+ls -lh /backup/gfs/daily/
+ls -lh /backup/gfs/weekly/
+ls -lh /backup/gfs/monthly/
+
+# Crear documento de política de retención
+sudo tee /backup/gfs/POLITICA-RETENCION.md << 'EOF'
+# Política de Retención de Backups GFS
+
+## Esquema Grandfather-Father-Son
+
+### Backups Diarios (Hijo)
+- **Frecuencia**: Todos los días (Lunes a Sábado)
+- **Retención**: 14 días (2 semanas)
+- **Ubicación**: /backup/gfs/daily/
+- **Horario**: 2:00 AM
+
+### Backups Semanales (Padre)
+- **Frecuencia**: Domingos
+- **Retención**: 56 días (8 semanas)
+- **Ubicación**: /backup/gfs/weekly/
+- **Horario**: 2:00 AM
+
+### Backups Mensuales (Abuelo)
+- **Frecuencia**: Primer día de cada mes
+- **Retención**: 365 días (12 meses)
+- **Ubicación**: /backup/gfs/monthly/
+- **Horario**: 2:00 AM
+
+## Almacenamiento Remoto
+- **Servidor**: 192.168.56.13 (Storage Backup)
+- **Directorio**: /home/backup/backups/gfs/
+- **Protocolo**: SCP
+
+## Verificación
+- **Frecuencia**: Semanal (Lunes 8:00 AM)
+- **Método**: Verificación de checksums MD5
+- **Alertas**: Log en /backup/gfs/logs/
+
+## Recuperación
+1. Identificar backup necesario según fecha
+2. Verificar integridad con checksum
+3. Extraer: tar -xzf backup-file.tar.gz -C /restore/
+4. Verificar contenido
+5. Copiar a ubicación final
+
+## Contacto
+- Responsable: admin@empresa.com
+- Emergencias: +34 XXX XXX XXX
+EOF
+```
+
+**Monitoreo del esquema GFS:**
+
+```bash
+# Crear dashboard simple
+sudo tee /usr/local/bin/gfs-status.sh << 'EOF'
+#!/bin/bash
+
+echo "╔═══════════════════════════════════════════╗"
+echo "║     Estado de Backups GFS                 ║"
+echo "╚═══════════════════════════════════════════╝"
+echo ""
+
+BACKUP_ROOT="/backup/gfs"
+
+for TYPE in daily weekly monthly; do
+    printf "%-10s: " "$(echo $TYPE | tr '[:lower:]' '[:upper:]')"
+    
+    COUNT=$(ls -1 "$BACKUP_ROOT/$TYPE"/*.tar.gz 2>/dev/null | wc -l)
+    LAST=$(ls -t "$BACKUP_ROOT/$TYPE"/*.tar.gz 2>/dev/null | head -1)
+    
+    if [ -n "$LAST" ]; then
+        LAST_DATE=$(stat -c %y "$LAST" | cut -d' ' -f1)
+        SIZE=$(du -sh "$BACKUP_ROOT/$TYPE" | cut -f1)
+        echo "$COUNT backups | Último: $LAST_DATE | Tamaño: $SIZE"
+    else
+        echo "Sin backups"
+    fi
+done
+
+echo ""
+echo "Próxima ejecución: $(grep backup-gfs /etc/cron.d/backup-gfs | head -1 | awk '{print $1, $2}')"
+EOF
+
+sudo chmod +x /usr/local/bin/gfs-status.sh
+
+# Ejecutar dashboard
+sudo /usr/local/bin/gfs-status.sh
+```
+
+**Prueba de restauración:**
+
+```bash
+# Restaurar un backup específico
+BACKUP_FILE=$(ls -t /backup/gfs/daily/*.tar.gz | head -1)
+
+# Verificar integridad
+cd $(dirname $BACKUP_FILE)
+md5sum -c $(basename $BACKUP_FILE).md5
+
+# Extraer en directorio temporal
+sudo mkdir -p /tmp/restore-test
+sudo tar -xzf $BACKUP_FILE -C /tmp/restore-test
+
+# Verificar contenido
+ls -la /tmp/restore-test/var/www/html/
+
+# Limpiar
+sudo rm -rf /tmp/restore-test
+```
+
+</details>
+
+---
+
+## Trabajos Prácticos
+
+Los siguientes trabajos son más extensos y requieren integrar múltiples conceptos vistos en el tema. 
+
+### Trabajo 1: Implementación de Sistema de Almacenamiento Centralizado
+
+**Descripción:**  
+Implementar una solución completa de almacenamiento centralizado utilizando Storage Backup como servidor central, configurando servicios NAS (NFS y Samba), implementando cuotas de disco, monitoreando el rendimiento y documentando todo el proceso.
+
+**Objetivos:**
+- Configurar servicios de almacenamiento en red (NFS y Samba)
+- Implementar control de acceso y cuotas de disco
+- Medir y optimizar el rendimiento de almacenamiento
+- Documentar la infraestructura implementada
+
+**Máquinas a utilizar:**
+- **Storage Backup** (192.168.56.13) - Servidor de almacenamiento
+- **Ubuntu Server** (192.168.56.10) - Cliente Linux
+- **Windows Client** (192.168.56.12) - Cliente Windows
+
+**Requisitos del trabajo:**
+
+1. **Configuración del servidor de almacenamiento:**
+   - Crear estructura de directorios para diferentes departamentos (IT, RRHH, Ventas)
+   - Configurar NFS con exports para clientes Linux
+   - Configurar Samba con shares para clientes Windows
+   - Implementar control de acceso por usuario/grupo
+   - Configurar cuotas de disco por departamento
+
+2. **Configuración de clientes:**
+   - Montar recursos NFS en Ubuntu Server con montaje automático (fstab)
+   - Montar recursos Samba en Windows Client con letra de unidad asignada
+   - Configurar permisos adecuados en ambos clientes
+   - Probar acceso con diferentes usuarios
+
+3. **Medición de rendimiento:**
+   - Realizar pruebas de velocidad de lectura/escritura con diferentes herramientas (dd, fio)
+   - Comparar rendimiento local vs red
+   - Documentar resultados con gráficos o tablas
+   - Identificar posibles cuellos de botella
+
+4. **Monitoreo y documentación:**
+   - Implementar script de monitoreo de espacio disponible
+   - Configurar alertas cuando se alcance 80% de uso
+   - Crear logs de acceso a los recursos compartidos
+   - Documentar toda la configuración en formato Markdown
+
+**Entregables:**
+1. Documento técnico (PDF o Markdown) con:
+   - Diagrama de la infraestructura implementada
+   - Configuración paso a paso de todos los servicios
+   - Resultados de las pruebas de rendimiento
+   - Scripts desarrollados (comentados)
+   - Análisis de resultados y conclusiones
+   - Propuestas de mejora
+
+2. Capturas de pantalla demostrando:
+   - Configuración de servicios
+   - Montajes funcionando en clientes
+   - Resultados de pruebas de rendimiento
+   - Scripts de monitoreo en ejecución
+
+3. Archivos de configuración:
+   - /etc/exports (NFS)
+   - /etc/samba/smb.conf
+   - Scripts de monitoreo
+   - Archivos fstab de clientes
+
+**Criterios de evaluación:**
+- Funcionamiento correcto de todos los servicios (40%)
+- Documentación técnica completa y clara (30%)
+- Pruebas de rendimiento realizadas correctamente (15%)
+- Scripts de monitoreo funcionales (10%)
+- Presentación y organización del trabajo (5%)
+
+**Tiempo estimado:** 8-12 horas
+
+---
+
+### Trabajo 2: Plan Integral de Copias de Seguridad y Recuperación ante Desastres
+
+**Descripción:**  
+Diseñar e implementar un plan completo de copias de seguridad para una empresa ficticia, incluyendo diferentes estrategias (total, incremental, diferencial), esquema de rotación GFS, backups de base de datos, creación de imágenes del sistema, documentación de procedimientos de recuperación y realización de pruebas de restauración.
+
+**Objetivos:**
+- Diseñar una estrategia integral de backups
+- Implementar diferentes tipos de copias de seguridad
+- Crear y probar procedimientos de recuperación
+- Documentar un plan de recuperación ante desastres (DRP)
+
+**Máquinas a utilizar:**
+- **Ubuntu Server** (192.168.56.10) - Servidor de producción
+- **Storage Backup** (192.168.56.13) - Servidor de backups
+- **Windows Server** (192.168.56.11) - Servidor Windows de producción
+- **Kali Security** (192.168.56.20) - Para pruebas de recuperación
+
+**Requisitos del trabajo:**
+
+1. **Análisis y planificación:**
+   - Definir perfil de empresa ficticia (tipo, tamaño, datos críticos)
+   - Identificar datos críticos y su nivel de importancia
+   - Definir RPO y RTO para cada tipo de dato
+   - Diseñar política de retención de backups
+   - Calcular espacio de almacenamiento necesario
+
+2. **Implementación de backups:**
+   - Configurar backups totales, incrementales y diferenciales
+   - Implementar esquema de rotación GFS
+   - Configurar backup de base de datos MySQL
+   - Realizar backup de archivos de configuración del sistema
+   - Crear imagen completa del sistema con Clonezilla (documentado)
+   - Configurar backup de Windows Server con Robocopy/PowerShell
+
+3. **Automatización:**
+   - Crear scripts para cada tipo de backup
+   - Programar ejecución automática con cron/Task Scheduler
+   - Implementar sistema de verificación de integridad
+   - Configurar notificaciones por email en caso de fallo
+   - Crear dashboard de estado de backups
+
+4. **Pruebas de recuperación:**
+   - Realizar prueba de restauración de archivo individual
+   - Realizar prueba de restauración de base de datos
+   - Documentar procedimiento de restauración de imagen completa
+   - Simular diferentes escenarios de desastre y documentar recuperación
+   - Medir tiempos reales de recuperación (RTO real)
+
+5. **Documentación del DRP:**
+   - Procedimientos detallados de cada tipo de restauración
+   - Diagrama de flujo de decisiones ante desastre
+   - Lista de contactos y responsabilidades
+   - Checklist de verificación post-recuperación
+   - Plan de comunicación ante desastre
+
+**Entregables:**
+1. Documento completo del Plan de Recuperación ante Desastres (mínimo 15 páginas) que incluya:
+   - Análisis de riesgos
+   - Estrategia de backups detallada
+   - Política de retención
+   - Procedimientos de backup paso a paso
+   - Procedimientos de restauración paso a paso
+   - Resultados de pruebas realizadas
+   - Plantillas y checklists
+
+2. Scripts desarrollados (con comentarios extensos):
+   - Scripts de backup automatizado
+   - Scripts de verificación
+   - Scripts de monitoreo
+   - Scripts de restauración
+
+3. Evidencias de implementación:
+   - Capturas de pantalla de backups ejecutándose
+   - Logs de backups exitosos y fallidos
+   - Resultados de pruebas de restauración
+   - Tiempos medidos de backup y restauración
+
+4. Presentación ejecutiva (PowerPoint/PDF):
+   - Resumen del plan para dirección
+   - Costos estimados
+   - Beneficios y justificación
+   - Recomendaciones
+
+**Criterios de evaluación:**
+- Diseño y completitud del plan DRP (25%)
+- Implementación técnica correcta de backups (25%)
+- Scripts funcionales y bien documentados (20%)
+- Pruebas de recuperación realizadas y documentadas (15%)
+- Calidad de la documentación (10%)
+- Presentación ejecutiva (5%)
+
+**Tiempo estimado:** 12-16 horas
+
+---
+
+:::tip Recomendaciones para los trabajos
+- Trabaja de forma metodológica, documentando cada paso
+- Realiza pruebas constantes para verificar que todo funciona
+- Guarda copias de seguridad de tus configuraciones
+- No dudes en experimentar en las máquinas virtuales
+- Consulta la documentación oficial de las herramientas
+- Colabora con tus compañeros para resolver dudas
+:::
+
+:::warning Importante
+Antes de entregar cualquier trabajo, asegúrate de:
+- ✅ Todos los comandos y scripts funcionan correctamente
+- ✅ La documentación es clara y completa
+- ✅ Las capturas de pantalla son legibles y relevantes
+- ✅ Has realizado pruebas de todos los procedimientos
+- ✅ El formato del documento es profesional
+- ✅ Has revisado la ortografía y gramática
+:::
