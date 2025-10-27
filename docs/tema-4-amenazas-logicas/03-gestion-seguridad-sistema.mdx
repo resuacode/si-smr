@@ -1,0 +1,1034 @@
+---
+title: Gestión de la Seguridad del Sistema
+sidebar_position: 3
+---
+
+# Gestión de la Seguridad del Sistema
+
+La gestión efectiva de la seguridad del sistema requiere un enfoque proactivo que incluya actualizaciones regulares, monitoreo de la integridad, respaldo de datos y planes de contingencia. En esta sección exploraremos las mejores prácticas y herramientas para mantener la seguridad del sistema.
+
+En esta sección vamos a cubrir los siguientes temas:
+1. Actualizaciones periódicas de sistemas y aplicaciones
+2. Herramientas de integridad del sistema y monitoreo
+   - Verificación de integridad con hash
+   - Control y seguimiento de accesos (logs)
+3. Técnicas de recuperación de datos
+4. Planes de contingencia ante fallos de seguridad
+
+## Actualizaciones periódicas de sistemas y aplicaciones
+
+Las actualizaciones de seguridad son la primera línea de defensa contra vulnerabilidades conocidas. Mantener el sistema operativo y las aplicaciones actualizadas es fundamental para cerrar brechas de seguridad.
+
+### Importancia de las actualizaciones
+
+Las actualizaciones de seguridad corrigen vulnerabilidades que podrían ser explotadas por atacantes. Los principales beneficios incluyen:
+
+- **Corrección de vulnerabilidades**: Parches para fallos de seguridad conocidos
+- **Mejoras de estabilidad**: Corrección de bugs que afectan el rendimiento
+- **Nuevas funcionalidades**: Características adicionales y mejoras
+- **Compatibilidad**: Soporte para nuevo hardware y software
+- **Cumplimiento normativo**: Requisitos de seguridad y auditoría
+
+#### Tipos de actualizaciones
+
+| Tipo | Criticidad | Frecuencia | Descripción |
+|------|------------|------------|-------------|
+| **Críticas** | Máxima | Inmediata | Vulnerabilidades de seguridad graves |
+| **Importantes** | Alta | Semanal | Problemas de seguridad significativos |
+| **Moderadas** | Media | Mensual | Mejoras de seguridad y estabilidad |
+| **Opcionales** | Baja | Variable | Nuevas características no críticas |
+
+### Gestión de actualizaciones en Linux
+
+#### Sistemas basados en Debian/Ubuntu
+
+```bash
+# Actualizar lista de paquetes
+sudo apt update
+
+# Ver actualizaciones disponibles
+apt list --upgradable
+
+# Actualizar todos los paquetes
+sudo apt upgrade
+
+# Actualización completa (incluye cambios de dependencias)
+sudo apt full-upgrade
+
+# Actualización de seguridad solamente
+sudo apt upgrade -s | grep -i security
+sudo unattended-upgrade --dry-run
+
+# Limpiar paquetes obsoletos
+sudo apt autoremove
+sudo apt autoclean
+
+# Verificar actualizaciones de seguridad pendientes
+sudo apt update && apt list --upgradable | grep -i security
+```
+
+**Configuración de actualizaciones automáticas:**
+
+```bash
+# Instalar paquete de actualizaciones desatendidas
+sudo apt install unattended-upgrades apt-listchanges
+
+# Configurar actualizaciones automáticas
+sudo dpkg-reconfigure -plow unattended-upgrades
+
+# Editar configuración
+sudo nano /etc/apt/apt.conf.d/50unattended-upgrades
+```
+
+Contenido recomendado para `/etc/apt/apt.conf.d/50unattended-upgrades`:
+
+```conf
+Unattended-Upgrade::Allowed-Origins {
+    "${distro_id}:${distro_codename}-security";
+    "${distro_id}ESMApps:${distro_codename}-apps-security";
+};
+
+Unattended-Upgrade::AutoFixInterruptedDpkg "true";
+Unattended-Upgrade::MinimalSteps "true";
+Unattended-Upgrade::Remove-Unused-Dependencies "true";
+Unattended-Upgrade::Automatic-Reboot "false";
+Unattended-Upgrade::Automatic-Reboot-Time "03:00";
+```
+
+#### Sistemas basados en Red Hat/CentOS
+
+```bash
+# Actualizar lista de paquetes
+sudo yum check-update
+
+# Actualizar todos los paquetes
+sudo yum update
+
+# Actualizar solo parches de seguridad
+sudo yum update --security
+
+# Ver actualizaciones de seguridad disponibles
+sudo yum updateinfo list security
+
+# Instalar actualización específica
+sudo yum update nombre-paquete
+
+# Configurar actualizaciones automáticas
+sudo yum install yum-cron
+sudo systemctl enable --now yum-cron
+
+# Configuración
+sudo nano /etc/yum/yum-cron.conf
+```
+
+### Gestión de actualizaciones en Windows
+
+#### Windows Update
+
+**Interfaz gráfica:**
+- Configuración → Actualización y seguridad → Windows Update
+- Buscar actualizaciones
+- Ver historial de actualizaciones
+- Opciones avanzadas (actualizaciones diferidas)
+
+**PowerShell:**
+
+```powershell
+# Ver actualizaciones disponibles
+Get-WindowsUpdate
+
+# Instalar todas las actualizaciones
+Install-WindowsUpdate -AcceptAll -AutoReboot
+
+# Instalar solo actualizaciones de seguridad
+Install-WindowsUpdate -Category "Security Updates" -AcceptAll
+
+# Ver historial de actualizaciones
+Get-WUHistory
+
+# Verificar última actualización
+Get-HotFix | Sort-Object InstalledOn -Descending | Select-Object -First 10
+
+# Descargar sin instalar
+Get-WindowsUpdate -Download -AcceptAll
+
+# Ocultar actualización específica
+Hide-WindowsUpdate -KBArticleID "KB5000000"
+```
+
+**Configuración de WSUS (Windows Server Update Services):**
+
+Para entornos empresariales, centralizar la gestión de actualizaciones:
+
+```powershell
+# Instalar rol WSUS
+Install-WindowsFeature -Name UpdateServices -IncludeManagementTools
+
+# Configurar cliente para usar WSUS
+Set-ItemProperty -Path "HKLM:\Software\Policies\Microsoft\Windows\WindowsUpdate" `
+  -Name "WUServer" -Value "http://wsus-server:8530"
+Set-ItemProperty -Path "HKLM:\Software\Policies\Microsoft\Windows\WindowsUpdate" `
+  -Name "WUStatusServer" -Value "http://wsus-server:8530"
+
+# Forzar detección de actualizaciones
+wuauclt /detectnow
+```
+
+### Actualización de aplicaciones
+
+#### Gestores de paquetes modernos
+
+**Linux - Snap:**
+```bash
+# Listar snaps instalados
+snap list
+
+# Actualizar todos los snaps
+sudo snap refresh
+
+# Actualizar snap específico
+sudo snap refresh nombre-app
+
+# Ver actualizaciones disponibles
+snap refresh --list
+```
+
+**Linux - Flatpak:**
+```bash
+# Listar aplicaciones instaladas
+flatpak list
+
+# Actualizar todas las aplicaciones
+flatpak update
+
+# Actualizar aplicación específica
+flatpak update nombre-app
+
+# Ver actualizaciones disponibles
+flatpak remote-ls --updates
+```
+
+**Windows - Winget:**
+```powershell
+# Listar aplicaciones con actualizaciones disponibles
+winget upgrade
+
+# Actualizar todas las aplicaciones
+winget upgrade --all
+
+# Actualizar aplicación específica
+winget upgrade --id NombreApp
+
+# Ver información de actualización
+winget show --id NombreApp
+```
+
+**Windows - Chocolatey:**
+```powershell
+# Listar paquetes desactualizados
+choco outdated
+
+# Actualizar todos los paquetes
+choco upgrade all -y
+
+# Actualizar paquete específico
+choco upgrade nombre-paquete -y
+
+# Ver información del paquete
+choco info nombre-paquete
+```
+
+### Políticas de actualización organizacional
+
+#### Estrategia de parches
+
+**Fase 1 - Evaluación (1-3 días):**
+- Revisar boletines de seguridad
+- Evaluar criticidad y impacto
+- Identificar sistemas afectados
+- Priorizar según riesgo
+
+**Fase 2 - Pruebas (3-7 días):**
+- Probar en entorno de desarrollo
+- Verificar compatibilidad con aplicaciones
+- Documentar problemas encontrados
+- Obtener aprobaciones necesarias
+
+**Fase 3 - Despliegue (7-30 días):**
+- Implementar en producción por fases
+- Monitorear sistemas actualizados
+- Tener plan de rollback preparado
+- Documentar proceso y resultados
+
+#### Calendario de mantenimiento
+
+```markdown
+## Ventanas de mantenimiento
+
+### Sistemas críticos
+- Día: Domingo
+- Hora: 2:00 AM - 6:00 AM
+- Frecuencia: Mensual (primer domingo)
+- Actualizaciones: Solo críticas y importantes
+
+### Sistemas de producción
+- Día: Sábado
+- Hora: 11:00 PM - 5:00 AM
+- Frecuencia: Quincenal
+- Actualizaciones: Todas las de seguridad
+
+### Sistemas de desarrollo
+- Día: Cualquier día
+- Hora: Horario laboral
+- Frecuencia: Semanal
+- Actualizaciones: Todas disponibles
+```
+
+### Verificación post-actualización
+
+```bash
+# Linux - Verificar servicios críticos
+systemctl status apache2
+systemctl status mysql
+systemctl status ssh
+
+# Verificar logs de actualización
+tail -f /var/log/apt/history.log
+tail -f /var/log/dpkg.log
+
+# Verificar kernel actualizado
+uname -r
+cat /proc/version
+
+# Listar últimas actualizaciones
+tail -50 /var/log/apt/history.log | grep "Commandline: apt"
+```
+
+```powershell
+# Windows - Verificar servicios críticos
+Get-Service | Where-Object {$_.Status -eq "Running"} | Select Name, Status
+
+# Ver eventos de actualización
+Get-WinEvent -LogName System | Where-Object {$_.Id -eq 19} | Select -First 10
+
+# Verificar versión del sistema
+winver
+[System.Environment]::OSVersion
+
+# Verificar última actualización exitosa
+Get-HotFix | Sort-Object InstalledOn -Descending | Select -First 1
+```
+
+## Herramientas de integridad del sistema y monitoreo
+
+### Verificación de integridad con hash
+
+La verificación de integridad mediante funciones hash permite detectar modificaciones no autorizadas en archivos críticos del sistema.
+
+#### Funciones hash criptográficas
+
+Las funciones hash generan un valor único (huella digital) para cada archivo:
+
+**Propiedades deseables:**
+- **Determinística**: El mismo archivo siempre produce el mismo hash
+- **Rápida de calcular**: Eficiente en recursos
+- **Resistente a colisiones**: Difícil encontrar dos archivos con el mismo hash
+- **Efecto avalancha**: Pequeños cambios producen hashes muy diferentes
+- **Irreversible**: No se puede obtener el archivo original desde el hash
+
+#### AIDE (Advanced Intrusion Detection Environment)
+
+AIDE es una herramienta que verifica la integridad de archivos y detecta cambios no autorizados.
+
+**Instalación y configuración:**
+
+```bash
+# Instalar AIDE
+sudo apt install aide
+
+# Configurar AIDE
+sudo nano /etc/aide/aide.conf
+```
+
+Configuración recomendada para `/etc/aide/aide.conf`:
+
+```conf
+# Directorios a monitorear
+/bin R+b+sha256
+/sbin R+b+sha256
+/usr/bin R+b+sha256
+/usr/sbin R+b+sha256
+/lib R+b+sha256
+/lib64 R+b+sha256
+/etc R+b+sha256
+
+# Excluir directorios variables
+!/var/log
+!/var/cache
+!/tmp
+!/proc
+!/sys
+
+# Reglas personalizadas
+NORMAL = R+b+sha256+md5
+PERMS = p+u+g+acl
+```
+
+**Uso de AIDE:**
+
+```bash
+# Inicializar base de datos
+sudo aideinit
+
+# Copiar base de datos inicial
+sudo cp /var/lib/aide/aide.db.new /var/lib/aide/aide.db
+
+# Verificar integridad del sistema
+sudo aide --check
+
+# Actualizar base de datos después de cambios legítimos
+sudo aide --update
+sudo cp /var/lib/aide/aide.db.new /var/lib/aide/aide.db
+
+# Programar verificación diaria con cron
+echo "0 5 * * * root /usr/bin/aide --check | mail -s 'AIDE Daily Check' admin@domain.com" | sudo tee -a /etc/crontab
+```
+
+#### Tripwire
+
+Tripwire es otra herramienta de verificación de integridad ampliamente utilizada.
+
+```bash
+# Instalar Tripwire
+sudo apt install tripwire
+
+# Durante la instalación, crear contraseñas para:
+# - Site key (protege archivos de configuración)
+# - Local key (protege base de datos)
+
+# Inicializar base de datos
+sudo tripwire --init
+
+# Verificar integridad
+sudo tripwire --check
+
+# Actualizar base de datos
+sudo tripwire --update -Z low -r /ruta/archivo/modificado
+
+# Ver informe detallado
+sudo tripwire --check --interactive
+```
+
+#### Verificación manual con checksums
+
+```bash
+# Crear checksums de archivos críticos
+find /etc -type f -exec sha256sum {} \; > /root/etc-checksums.txt
+find /usr/bin -type f -exec sha256sum {} \; > /root/bin-checksums.txt
+
+# Verificar checksums periódicamente
+sha256sum -c /root/etc-checksums.txt > /tmp/integrity-check.log
+
+# Script de verificación automática
+sudo tee /usr/local/bin/check-integrity.sh << 'EOF'
+#!/bin/bash
+LOGFILE="/var/log/integrity-check.log"
+date >> $LOGFILE
+sha256sum -c /root/etc-checksums.txt >> $LOGFILE 2>&1
+if [ $? -ne 0 ]; then
+    echo "ALERTA: Se detectaron cambios en archivos críticos" | \
+        mail -s "Alerta de Integridad" admin@domain.com
+fi
+EOF
+
+sudo chmod +x /usr/local/bin/check-integrity.sh
+
+# Programar verificación
+echo "0 */6 * * * root /usr/local/bin/check-integrity.sh" | sudo tee -a /etc/crontab
+```
+
+#### File Integrity Monitoring en Windows
+
+```powershell
+# PowerShell - Crear baseline de integridad
+$files = Get-ChildItem -Path "C:\Windows\System32" -File
+$baseline = @{}
+foreach ($file in $files) {
+    $hash = Get-FileHash -Path $file.FullName -Algorithm SHA256
+    $baseline[$file.FullName] = $hash.Hash
+}
+$baseline | ConvertTo-Json | Out-File "C:\Security\baseline.json"
+
+# Verificar integridad
+$baseline = Get-Content "C:\Security\baseline.json" | ConvertFrom-Json
+$changes = @()
+foreach ($path in $baseline.PSObject.Properties.Name) {
+    if (Test-Path $path) {
+        $currentHash = (Get-FileHash -Path $path -Algorithm SHA256).Hash
+        if ($currentHash -ne $baseline.$path) {
+            $changes += "MODIFICADO: $path"
+        }
+    } else {
+        $changes += "ELIMINADO: $path"
+    }
+}
+if ($changes.Count -gt 0) {
+    $changes | Out-File "C:\Security\integrity-changes.log"
+    Send-MailMessage -To "admin@domain.com" -Subject "Cambios de Integridad" -Body ($changes -join "`n")
+}
+```
+
+### Control y seguimiento de accesos (logs)
+
+Los logs (registros) son fundamentales para auditoría, detección de intrusiones y análisis forense.
+
+#### Logs en Linux
+
+**Archivos de log principales:**
+
+| Archivo | Descripción |
+|---------|-------------|
+| `/var/log/syslog` | Logs generales del sistema (Debian/Ubuntu) |
+| `/var/log/messages` | Logs generales (Red Hat/CentOS) |
+| `/var/log/auth.log` | Autenticación y autorización |
+| `/var/log/secure` | Logs de seguridad (Red Hat) |
+| `/var/log/kern.log` | Logs del kernel |
+| `/var/log/apache2/` | Logs de Apache |
+| `/var/log/mysql/` | Logs de MySQL |
+
+**Análisis de logs con comandos:**
+
+```bash
+# Ver intentos fallidos de login
+grep "Failed password" /var/log/auth.log
+
+# Contar intentos por IP
+grep "Failed password" /var/log/auth.log | awk '{print $(NF-3)}' | sort | uniq -c | sort -rn
+
+# Ver logins exitosos
+grep "Accepted password" /var/log/auth.log
+
+# Ver comandos ejecutados con sudo
+grep "sudo" /var/log/auth.log | grep "COMMAND"
+
+# Ver últimos logins
+last -n 20
+lastlog
+
+# Ver intentos de login fallidos
+lastb
+
+# Monitorear logs en tiempo real
+tail -f /var/log/syslog
+tail -f /var/log/auth.log
+
+# Buscar patrones sospechosos
+grep -i "error\|fail\|denied\|refused" /var/log/syslog | tail -50
+```
+
+**Journalctl (systemd):**
+
+```bash
+# Ver todos los logs
+journalctl
+
+# Logs desde el último arranque
+journalctl -b
+
+# Logs del servicio SSH
+journalctl -u ssh
+
+# Logs de las últimas 2 horas
+journalctl --since "2 hours ago"
+
+# Logs en tiempo real
+journalctl -f
+
+# Logs con prioridad error o superior
+journalctl -p err
+
+# Logs de un usuario específico
+journalctl _UID=1000
+
+# Exportar logs
+journalctl -u apache2 --since "2025-10-01" > apache-october.log
+
+# Limpiar logs antiguos
+journalctl --vacuum-time=30d
+journalctl --vacuum-size=500M
+```
+
+#### Logs en Windows
+
+**Event Viewer (Visor de eventos):**
+
+```powershell
+# Ver logs de seguridad (PowerShell como Admin)
+Get-EventLog -LogName Security -Newest 100
+
+# Ver intentos de login fallidos (Event ID 4625)
+Get-EventLog -LogName Security | Where-Object {$_.EventID -eq 4625} | Select -First 20
+
+# Ver logins exitosos (Event ID 4624)
+Get-EventLog -LogName Security | Where-Object {$_.EventID -eq 4624} | Select -First 20
+
+# Ver cambios en cuentas de usuario (Event ID 4720, 4722, 4724)
+Get-EventLog -LogName Security | Where-Object {$_.EventID -in 4720,4722,4724}
+
+# Ver errores del sistema
+Get-EventLog -LogName System -EntryType Error -Newest 50
+
+# Ver logs de aplicaciones
+Get-EventLog -LogName Application -Newest 100
+
+# Exportar logs
+Get-EventLog -LogName Security -After (Get-Date).AddDays(-7) | Export-Csv security-logs.csv
+
+# Filtrar por fecha
+$startDate = Get-Date "2025-10-01"
+$endDate = Get-Date "2025-10-27"
+Get-EventLog -LogName Security -After $startDate -Before $endDate
+```
+
+**Eventos importantes de seguridad:**
+
+| Event ID | Descripción |
+|----------|-------------|
+| **4624** | Login exitoso |
+| **4625** | Login fallido |
+| **4634** | Logout |
+| **4648** | Login con credenciales explícitas |
+| **4720** | Cuenta de usuario creada |
+| **4722** | Cuenta de usuario habilitada |
+| **4724** | Intento de resetear contraseña |
+| **4728** | Usuario añadido a grupo de seguridad |
+| **4732** | Usuario añadido a grupo local |
+| **4740** | Cuenta bloqueada |
+
+#### Configuración de syslog centralizado
+
+Para gestionar logs de múltiples sistemas:
+
+```bash
+# Servidor de logs (rsyslog)
+sudo apt install rsyslog
+
+# Configurar como servidor
+sudo nano /etc/rsyslog.conf
+```
+
+Añadir al archivo:
+```conf
+# Habilitar recepción UDP
+module(load="imudp")
+input(type="imudp" port="514")
+
+# Habilitar recepción TCP (más confiable)
+module(load="imtcp")
+input(type="imtcp" port="514")
+
+# Plantilla para organizar logs por host
+$template RemoteLogs,"/var/log/remote/%HOSTNAME%/%PROGRAMNAME%.log"
+*.* ?RemoteLogs
+```
+
+**Cliente (enviar logs al servidor):**
+```bash
+# Editar configuración
+sudo nano /etc/rsyslog.conf
+
+# Añadir línea
+*.* @192.168.1.100:514  # UDP
+# o
+*.* @@192.168.1.100:514  # TCP
+
+# Reiniciar servicio
+sudo systemctl restart rsyslog
+```
+
+#### Análisis de logs con herramientas especializadas
+
+**Logwatch:**
+```bash
+# Instalar
+sudo apt install logwatch
+
+# Ejecutar reporte
+sudo logwatch --detail High --mailto admin@domain.com --range today
+
+# Configurar envío diario
+sudo nano /etc/cron.daily/00logwatch
+```
+
+**Fail2ban:**
+```bash
+# Instalar
+sudo apt install fail2ban
+
+# Configurar
+sudo cp /etc/fail2ban/jail.conf /etc/fail2ban/jail.local
+sudo nano /etc/fail2ban/jail.local
+```
+
+Configuración recomendada:
+```conf
+[sshd]
+enabled = true
+port = ssh
+filter = sshd
+logpath = /var/log/auth.log
+maxretry = 3
+bantime = 3600
+findtime = 600
+
+[apache-auth]
+enabled = true
+port = http,https
+filter = apache-auth
+logpath = /var/log/apache2/error.log
+maxretry = 5
+```
+
+```bash
+# Iniciar servicio
+sudo systemctl enable --now fail2ban
+
+# Ver estado
+sudo fail2ban-client status
+
+# Ver IPs baneadas
+sudo fail2ban-client status sshd
+
+# Desbanear IP
+sudo fail2ban-client set sshd unbanip 192.168.1.50
+```
+
+## Técnicas de recuperación de datos
+
+La recuperación de datos es esencial cuando se producen fallos de hardware, eliminaciones accidentales o ataques de malware.
+
+### Herramientas de recuperación en Linux
+
+#### TestDisk y PhotoRec
+
+```bash
+# Instalar
+sudo apt install testdisk
+
+# Ejecutar TestDisk (recuperar particiones)
+sudo testdisk
+
+# Ejecutar PhotoRec (recuperar archivos)
+sudo photorec
+```
+
+**Uso de PhotoRec:**
+1. Seleccionar dispositivo de almacenamiento
+2. Seleccionar tipo de partición
+3. Elegir sistema de archivos
+4. Especificar directorio de destino
+5. Esperar proceso de recuperación
+
+#### Extundelete (ext3/ext4)
+
+```bash
+# Instalar
+sudo apt install extundelete
+
+# Desmontar partición afectada
+sudo umount /dev/sda1
+
+# Recuperar archivo específico
+sudo extundelete /dev/sda1 --restore-file ruta/al/archivo
+
+# Recuperar todo de un directorio
+sudo extundelete /dev/sda1 --restore-directory /home/usuario/documentos
+
+# Recuperar todos los archivos eliminados
+sudo extundelete /dev/sda1 --restore-all
+```
+
+#### Foremost (recuperación por firma de archivo)
+
+```bash
+# Instalar
+sudo apt install foremost
+
+# Recuperar de dispositivo
+sudo foremost -t jpg,png,pdf,doc -i /dev/sda1 -o /recovery
+
+# Recuperar de imagen de disco
+sudo foremost -t all -i disk-image.dd -o /recovery
+```
+
+### Herramientas de recuperación en Windows
+
+#### Recuva
+
+- Interfaz gráfica intuitiva
+- Recuperación de archivos eliminados
+- Análisis profundo del disco
+- Previsualización de archivos
+
+**Uso por línea de comandos:**
+```cmd
+recuva /deep /drive:C: /output:recovery.txt
+```
+
+#### Windows File Recovery (Microsoft)
+
+```powershell
+# Instalar desde Microsoft Store
+winget install Microsoft.WindowsFileRecovery
+
+# Recuperar archivo específico
+winfr C: E: /n \Users\Usuario\Documents\archivo.docx
+
+# Recuperar por extensión
+winfr C: E: /n *.pdf /n *.docx
+
+# Modo extenso (más profundo)
+winfr C: E: /x /n *.jpg
+
+# Recuperar carpeta completa
+winfr C: E: /n \Users\Usuario\Pictures\
+```
+
+### Recuperación de sistemas de archivos
+
+#### fsck (File System Check) - Linux
+
+```bash
+# Verificar y reparar sistema de archivos
+# IMPORTANTE: Desmontar primero
+sudo umount /dev/sda1
+sudo fsck /dev/sda1
+
+# Reparar automáticamente
+sudo fsck -y /dev/sda1
+
+# Verificar todos los sistemas de archivos
+sudo fsck -A
+
+# Forzar verificación en siguiente reinicio
+sudo touch /forcefsck
+sudo reboot
+```
+
+#### CHKDSK - Windows
+
+```cmd
+# Verificar disco
+chkdsk C:
+
+# Verificar y reparar errores
+chkdsk C: /F
+
+# Escaneo completo (buscar sectores dañados)
+chkdsk C: /R
+
+# Programar para siguiente reinicio
+chkdsk C: /F /R
+```
+
+```powershell
+# PowerShell equivalente
+Repair-Volume -DriveLetter C -Scan
+Repair-Volume -DriveLetter C -OfflineScanAndFix
+```
+
+### Clonación y recuperación de discos
+
+#### dd (Linux)
+
+```bash
+# Crear imagen de disco completo
+sudo dd if=/dev/sda of=/backup/disk-image.img bs=64K status=progress
+
+# Clonar disco a disco
+sudo dd if=/dev/sda of=/dev/sdb bs=64K status=progress
+
+# Recuperar desde imagen
+sudo dd if=/backup/disk-image.img of=/dev/sda bs=64K status=progress
+
+# Crear imagen comprimida
+sudo dd if=/dev/sda bs=64K status=progress | gzip > /backup/disk-image.img.gz
+
+# Restaurar desde imagen comprimida
+gunzip -c /backup/disk-image.img.gz | sudo dd of=/dev/sda bs=64K status=progress
+```
+
+#### ddrescue (para discos dañados)
+
+```bash
+# Instalar
+sudo apt install gddrescue
+
+# Recuperar datos de disco dañado
+sudo ddrescue -f -n /dev/sda /backup/rescue-image.img /backup/rescue.log
+
+# Segunda pasada (más agresiva)
+sudo ddrescue -d -f -r3 /dev/sda /backup/rescue-image.img /backup/rescue.log
+```
+
+## Planes de contingencia ante fallos de seguridad
+
+Un plan de contingencia establece los procedimientos a seguir ante incidentes de seguridad para minimizar el impacto y recuperar operaciones rápidamente.
+
+### Componentes del plan de contingencia
+
+#### 1. Equipo de respuesta a incidentes
+
+**Roles y responsabilidades:**
+
+| Rol | Responsabilidades |
+|-----|-------------------|
+| **Coordinador** | Gestión general del incidente |
+| **Analista técnico** | Análisis y contención |
+| **Comunicación** | Gestión de comunicaciones |
+| **Legal** | Aspectos legales y cumplimiento |
+| **Documentación** | Registro detallado del incidente |
+
+#### 2. Procedimiento de respuesta
+
+**Fase 1 - Detección e identificación:**
+```markdown
+1. Detectar anomalía o alerta
+2. Verificar naturaleza del incidente
+3. Clasificar severidad (Crítico/Alto/Medio/Bajo)
+4. Activar equipo de respuesta
+5. Iniciar documentación
+```
+
+**Fase 2 - Contención:**
+```bash
+# Aislar sistema comprometido
+sudo iptables -A INPUT -s 192.168.1.0/24 -j DROP  # Bloquear red
+sudo systemctl stop apache2  # Detener servicios
+sudo passwd -l usuario-comprometido  # Bloquear usuario
+
+# Preservar evidencias
+sudo dd if=/dev/sda of=/evidence/disk-$(date +%Y%m%d).img
+sudo tar -czf /evidence/logs-$(date +%Y%m%d).tar.gz /var/log/
+```
+
+**Fase 3 - Erradicación:**
+```bash
+# Eliminar malware
+sudo clamscan -r --remove /
+sudo rkhunter --check
+
+# Cerrar vulnerabilidades
+sudo apt update && sudo apt upgrade
+sudo ufw enable
+
+# Cambiar credenciales
+sudo passwd root
+sudo passwd usuario
+```
+
+**Fase 4 - Recuperación:**
+```bash
+# Restaurar desde backup
+sudo rsync -av /backup/latest/ /
+
+# Verificar integridad
+sudo aide --check
+
+# Restaurar servicios
+sudo systemctl start apache2
+sudo systemctl start mysql
+```
+
+**Fase 5 - Lecciones aprendidas:**
+- Documentar cronología del incidente
+- Analizar causa raíz
+- Identificar mejoras necesarias
+- Actualizar procedimientos
+- Capacitar al equipo
+
+### Plantilla de informe de incidente
+
+```markdown
+# Informe de Incidente de Seguridad
+
+## Información General
+- **ID del Incidente**: INC-2025-001
+- **Fecha de detección**: 27/10/2025 14:30
+- **Clasificación**: Crítico/Alto/Medio/Bajo
+- **Estado**: Abierto/En progreso/Resuelto/Cerrado
+
+## Resumen Ejecutivo
+Descripción breve del incidente y su impacto.
+
+## Cronología
+| Hora | Evento |
+|------|--------|
+| 14:30 | Detección de actividad anómala |
+| 14:45 | Confirmación de compromiso |
+| 15:00 | Inicio de contención |
+| 16:30 | Sistema aislado |
+| 18:00 | Erradicación completada |
+
+## Sistemas Afectados
+- Servidor web (192.168.1.10)
+- Base de datos (192.168.1.11)
+
+## Impacto
+- **Confidencialidad**: Alto/Medio/Bajo
+- **Integridad**: Alto/Medio/Bajo
+- **Disponibilidad**: Alto/Medio/Bajo
+
+## Acciones Tomadas
+1. Aislamiento del sistema
+2. Análisis forense
+3. Eliminación de malware
+4. Restauración desde backup
+
+## Causa Raíz
+Vulnerabilidad sin parchear en aplicación web.
+
+## Recomendaciones
+1. Implementar proceso de gestión de parches
+2. Configurar WAF (Web Application Firewall)
+3. Capacitar a usuarios sobre phishing
+
+## Seguimiento
+- Responsable: John Doe
+- Fecha límite: 15/11/2025
+- Estado: Pendiente
+```
+
+### Checklist de recuperación ante desastres
+
+```markdown
+## Pre-Desastre
+- [ ] Backups actualizados y verificados
+- [ ] Documentación actualizada
+- [ ] Contactos de emergencia disponibles
+- [ ] Hardware de repuesto identificado
+- [ ] Plan de comunicación definido
+
+## Durante el Desastre
+- [ ] Activar equipo de respuesta
+- [ ] Evaluar magnitud del daño
+- [ ] Implementar medidas de contención
+- [ ] Comunicar a stakeholders
+- [ ] Documentar todas las acciones
+
+## Post-Desastre
+- [ ] Restaurar sistemas críticos
+- [ ] Verificar integridad de datos
+- [ ] Probar funcionalidad
+- [ ] Analizar causa raíz
+- [ ] Actualizar plan de contingencia
+```
+
+:::warning Importante
+Un plan de contingencia debe ser probado regularmente mediante simulacros. Un plan no probado puede fallar cuando realmente se necesita.
+:::
+
+:::tip Recomendación
+Mantén copias impresas de los procedimientos críticos de recuperación. En caso de desastre que afecte la infraestructura IT, los documentos digitales podrían no estar accesibles.
+:::
+

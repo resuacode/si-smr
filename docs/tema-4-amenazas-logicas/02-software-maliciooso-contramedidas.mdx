@@ -1,0 +1,804 @@
+---
+title: Software Malicioso y Contramedidas
+sidebar_position: 2
+---
+
+# Software Malicioso y Contramedidas
+
+El software malicioso (malware) representa una de las amenazas más significativas para la seguridad de los sistemas informáticos. Comprender sus diferentes tipos, mecanismos de propagación y las contramedidas disponibles es fundamental para proteger adecuadamente nuestros sistemas.
+
+En esta sección vamos a cubrir los siguientes temas:
+1. Clasificación del software malicioso:
+   - Virus
+   - Troyanos
+   - Ransomware
+   - Spyware
+   - Adware
+2. Herramientas de protección y desinfección:
+   - Antivirus
+   - Antimalware
+3. Verificación del origen y autenticidad de las aplicaciones
+
+## Clasificación del software malicioso
+
+El malware se puede clasificar según su comportamiento, método de propagación y objetivo. A continuación, analizaremos los tipos más comunes y peligrosos.
+
+### Virus
+
+Un **virus informático** es un programa malicioso que se replica insertando copias de sí mismo en otros programas, archivos o en el sector de arranque del sistema. Requiere la intervención del usuario para activarse y propagarse.
+
+#### Características principales
+
+- **Auto-replicación**: Se copia a sí mismo en otros archivos o programas
+- **Necesita un host**: Debe infectar archivos ejecutables o documentos
+- **Requiere acción del usuario**: Se activa cuando se ejecuta el archivo infectado
+- **Puede permanecer latente**: Algunos virus esperan condiciones específicas para activarse
+
+#### Tipos de virus
+
+**Virus de archivos ejecutables:**
+- Infectan archivos .exe, .com, .bat
+- Se ejecutan cuando el usuario abre el programa infectado
+- Pueden sobrescribir código existente o añadirse al final del archivo
+
+**Virus de macros:**
+- Infectan documentos de Office (Word, Excel, PowerPoint)
+- Se ejecutan cuando se abre el documento
+- Pueden propagarse a través de correo electrónico
+
+**Virus de sector de arranque:**
+- Infectan el Master Boot Record (MBR) del disco
+- Se ejecutan antes que el sistema operativo
+- Difíciles de detectar y eliminar
+
+**Virus polimórficos:**
+- Cambian su código en cada infección
+- Dificultan la detección por firmas
+- Utilizan técnicas de cifrado y mutación
+
+**Virus residentes en memoria:**
+- Permanecen activos en la RAM
+- Pueden infectar archivos mientras el sistema está en ejecución
+- Persisten hasta que se reinicia el sistema
+
+#### Ejemplos históricos
+
+| Virus | Año | Impacto |
+|-------|-----|---------|
+| **Melissa** | 1999 | Infectó documentos de Word, se propagó por email |
+| **ILOVEYOU** | 2000 | Sobrescribía archivos, 10 millones de ordenadores |
+| **Code Red** | 2001 | Atacó servidores IIS, 359.000 sistemas afectados |
+| **Conficker** | 2008 | Red de bots masiva, millones de sistemas |
+
+#### Síntomas de infección por virus
+
+- Ralentización inusual del sistema
+- Archivos que desaparecen o se modifican sin explicación
+- Programas que no se inician correctamente
+- Mensajes de error extraños
+- Aumento inexplicable del uso de recursos
+- El antivirus se desactiva solo
+
+### Troyanos
+
+Los **troyanos** (o caballos de Troya) son programas que aparentan ser legítimos pero contienen funcionalidad maliciosa oculta. A diferencia de los virus, no se auto-replican.
+
+#### Características principales
+
+- **Disfrazados de software legítimo**: Parecen aplicaciones útiles o inofensivas
+- **No se auto-replican**: Necesitan ser distribuidos manualmente
+- **Acceso no autorizado**: Proporcionan control remoto del sistema
+- **Puertas traseras**: Crean puntos de entrada para otros malware
+
+#### Tipos de troyanos
+
+**Troyanos de acceso remoto (RAT):**
+- Permiten control total del sistema infectado
+- Ejemplos: SubSeven, Back Orifice, njRAT
+- Funciones: captura de pantalla, keylogging, activación de cámara
+
+**Troyanos bancarios:**
+- Roban credenciales de banca online
+- Ejemplos: Zeus, SpyEye, Dridex
+- Técnicas: inyección web, man-in-the-browser
+
+**Troyanos descargadores (Droppers):**
+- Descargan e instalan otro malware
+- Suelen ser la primera etapa de un ataque
+- Evitan la detección al no contener el payload principal
+
+**Troyanos de proxy:**
+- Convierten el sistema en servidor proxy
+- Ocultan actividades maliciosas del atacante
+- Utilizados para spam y ataques DDoS
+
+#### Métodos de distribución
+
+- **Ingeniería social**: Correos electrónicos con archivos adjuntos
+- **Descargas drive-by**: Sitios web comprometidos
+- **Software pirateado**: Cracks y keygens infectados
+- **Medios extraíbles**: USB infectadas
+
+#### Ejemplo de detección
+
+```bash
+# En Linux, buscar procesos sospechosos
+ps aux | grep -E "suspicious|unknown"
+
+# Verificar conexiones de red activas
+netstat -tupln | grep ESTABLISHED
+
+# Revisar servicios en ejecución
+systemctl list-units --type=service --state=running
+
+# Buscar archivos modificados recientemente
+find /usr/bin /usr/sbin -type f -mtime -7
+```
+
+### Ransomware
+
+El **ransomware** es un tipo de malware que cifra los archivos del usuario y exige un rescate para proporcionar la clave de descifrado.
+
+#### Características principales
+
+- **Cifrado de archivos**: Utiliza algoritmos criptográficos fuertes (AES, RSA)
+- **Demanda de rescate**: Generalmente en criptomonedas (Bitcoin)
+- **Plazo límite**: Amenaza con eliminar la clave si no se paga
+- **Propagación**: A través de email, vulnerabilidades, RDP expuesto
+
+#### Tipos de ransomware
+
+**Crypto-ransomware:**
+- Cifra archivos del usuario
+- Ejemplos: WannaCry, Locky, CryptoLocker
+- Afecta documentos, imágenes, bases de datos
+
+**Locker-ransomware:**
+- Bloquea el acceso al sistema operativo
+- Menos dañino que crypto-ransomware
+- Más fácil de eliminar
+
+**Scareware:**
+- Falsos avisos de seguridad
+- Exige pago por "limpiar" el sistema
+- No cifra realmente los archivos
+
+**Doxware (Leakware):**
+- Amenaza con publicar datos robados
+- Doble extorsión: cifrado + filtración
+- Ataques dirigidos a empresas
+
+#### Vectores de ataque
+
+| Vector | Descripción | Prevalencia |
+|--------|-------------|-------------|
+| **Email de phishing** | Archivos adjuntos maliciosos | 60-70% |
+| **RDP expuesto** | Fuerza bruta en Remote Desktop | 15-20% |
+| **Vulnerabilidades** | Exploits de software sin parchear | 10-15% |
+| **Drive-by downloads** | Sitios web comprometidos | 5-10% |
+
+#### Ejemplos notables
+
+**WannaCry (2017):**
+- Explotó vulnerabilidad EternalBlue (SMBv1)
+- Afectó a más de 200,000 sistemas en 150 países
+- Impacto en hospitales, empresas, gobiernos
+- Rescate: 300-600 USD en Bitcoin
+
+**Ryuk (2018-presente):**
+- Ataques dirigidos a empresas
+- Rescates de millones de dólares
+- Desactiva backups y shadow copies
+
+**REvil/Sodinokibi:**
+- Ransomware as a Service (RaaS)
+- Ataques de alto perfil
+- Técnica de doble extorsión
+
+#### Prevención del ransomware
+
+**Copias de seguridad:**
+```bash
+# Backup regular con verificación
+rsync -avz --delete /datos/ /backup/datos-$(date +%Y%m%d)/
+tar -czf /backup/critical-$(date +%Y%m%d).tar.gz /datos/critical/
+
+# Verificar integridad
+sha256sum /backup/critical-*.tar.gz > checksums.txt
+```
+
+**Restricción de permisos:**
+```bash
+# Limitar permisos de escritura
+chmod -R 755 /datos/read-only/
+
+# Configurar AppArmor/SELinux
+aa-enforce /etc/apparmor.d/*
+```
+
+**Actualizaciones y parches:**
+- Mantener el SO y aplicaciones actualizadas
+- Deshabilitar protocolos inseguros (SMBv1)
+- Usar firewalls y segmentación de red
+
+### Spyware
+
+El **spyware** es software que recopila información del usuario sin su conocimiento o consentimiento, transmitiéndola a terceros.
+
+#### Características principales
+
+- **Monitoreo oculto**: Opera sin el conocimiento del usuario
+- **Recopilación de datos**: Registra actividad, credenciales, hábitos
+- **Transmisión de información**: Envía datos a servidores remotos
+- **Consumo de recursos**: Ralentiza el sistema
+
+#### Tipos de spyware
+
+**Keyloggers:**
+- Registran todas las pulsaciones del teclado
+- Capturan contraseñas, números de tarjetas
+- Pueden ser software o hardware
+
+**Adware espía:**
+- Rastrea hábitos de navegación
+- Muestra publicidad dirigida
+- Modifica resultados de búsqueda
+
+**Infostealer:**
+- Roba información específica del sistema
+- Credenciales almacenadas en navegadores
+- Cookies de sesión, tokens de autenticación
+
+**Hijackers:**
+- Modifican configuración del navegador
+- Cambian página de inicio, motor de búsqueda
+- Instalan barras de herramientas no deseadas
+
+#### Indicadores de infección
+
+- Navegador con comportamiento extraño
+- Pop-ups constantes
+- Cambios en la página de inicio
+- Barras de herramientas desconocidas
+- Ralentización al navegar
+- Redirecciones a sitios no solicitados
+
+#### Detección y eliminación
+
+**En Windows:**
+```powershell
+# Verificar programas instalados
+Get-WmiObject -Class Win32_Product | Select Name, Version
+
+# Revisar procesos en ejecución
+Get-Process | Where-Object {$_.Company -eq $null}
+
+# Analizar extensiones de navegador
+# Chrome: chrome://extensions
+# Firefox: about:addons
+
+# Usar herramientas especializadas
+# Malwarebytes AdwCleaner
+# SpyBot Search & Destroy
+```
+
+**En Linux:**
+```bash
+# Verificar paquetes instalados
+dpkg -l | grep -v "^ii"
+
+# Buscar archivos sospechosos en home
+find ~ -type f -name ".*" -ls
+
+# Revisar extensiones del navegador
+ls ~/.mozilla/firefox/*.default/extensions/
+ls ~/.config/google-chrome/Default/Extensions/
+```
+
+### Adware
+
+El **adware** es software que muestra publicidad no deseada, generalmente para generar ingresos al desarrollador.
+
+#### Características principales
+
+- **Publicidad intrusiva**: Pop-ups, banners, notificaciones
+- **Modificación de navegación**: Inyecta anuncios en páginas web
+- **Recopilación de datos**: Rastrea hábitos para publicidad dirigida
+- **Instalación bundled**: Incluido en instaladores de software gratuito
+
+#### Tipos de adware
+
+**Adware legítimo:**
+- Software gratuito financiado por publicidad
+- Informa al usuario sobre los anuncios
+- Permite desinstalar fácilmente
+- Ejemplos: algunas versiones gratuitas de software
+
+**Adware malicioso:**
+- Se instala sin consentimiento claro
+- Difícil de desinstalar
+- Modifica configuración del sistema
+- Puede incluir funciones de spyware
+
+#### Diferencia con software legítimo
+
+| Aspecto | Software legítimo | Adware malicioso |
+|---------|-------------------|------------------|
+| **Consentimiento** | Informado y explícito | Oculto o engañoso |
+| **Desinstalación** | Fácil y clara | Difícil u oculta |
+| **Comportamiento** | Transparente | Agresivo e intrusivo |
+| **Privacidad** | Respeta las políticas | Recopila sin permiso |
+
+#### Prevención del adware
+
+**Durante la instalación:**
+- Leer cuidadosamente los acuerdos de licencia
+- Elegir instalación "Personalizada" en lugar de "Rápida"
+- Desmarcar opciones de software adicional
+- Verificar cambios en navegador (página inicio, buscador)
+
+**Herramientas de limpieza:**
+```bash
+# Linux - Eliminar paquetes no necesarios
+sudo apt autoremove
+sudo apt autoclean
+
+# Revisar repositorios de terceros
+ls /etc/apt/sources.list.d/
+
+# Windows - Usar herramientas especializadas
+# AdwCleaner de Malwarebytes
+# CCleaner (con precaución)
+# Windows Defender
+```
+
+## Herramientas de protección y desinfección
+
+### Antivirus
+
+Los **antivirus** son programas diseñados para detectar, prevenir y eliminar virus y otro software malicioso.
+
+#### Métodos de detección
+
+**Detección por firmas:**
+- Compara archivos con base de datos de firmas conocidas
+- Rápido y eficiente para malware conocido
+- Requiere actualizaciones constantes
+- No detecta malware de día cero (zero-day)
+
+**Detección heurística:**
+- Analiza el comportamiento del código
+- Busca patrones sospechosos
+- Detecta variantes de malware conocido
+- Mayor tasa de falsos positivos
+
+**Detección por comportamiento:**
+- Monitorea acciones del programa en tiempo real
+- Detecta actividades sospechosas (modificación de registro, cifrado masivo)
+- Efectivo contra malware desconocido
+- Puede impactar el rendimiento
+
+**Análisis en la nube:**
+- Envía muestras a servidores del fabricante
+- Utiliza machine learning e IA
+- Detección colaborativa de amenazas
+- Requiere conexión a Internet
+
+#### Componentes de un antivirus moderno
+
+**Protección en tiempo real:**
+- Escaneo de archivos al acceder
+- Monitoreo de procesos activos
+- Protección de email y descargas
+
+**Análisis bajo demanda:**
+- Escaneo manual del sistema
+- Análisis completo o personalizado
+- Programación de análisis
+
+**Firewall integrado:**
+- Control de tráfico de red
+- Bloqueo de conexiones sospechosas
+- Protección contra intrusiones
+
+**Protección web:**
+- Filtrado de URLs maliciosas
+- Bloqueo de phishing
+- Descarga segura de archivos
+
+#### Principales soluciones antivirus
+
+**Para Windows:**
+
+| Antivirus | Tipo | Características destacadas |
+|-----------|------|----------------------------|
+| **Windows Defender** | Gratuito | Integrado, buena protección básica |
+| **Kaspersky** | Comercial | Excelente detección, bajo impacto |
+| **Bitdefender** | Comercial | Alto rendimiento, protección proactiva |
+| **Norton 360** | Comercial | Suite completa, VPN incluida |
+| **Avast/AVG** | Freemium | Popular, versión gratuita disponible |
+
+**Para Linux:**
+
+| Antivirus | Uso principal | Características |
+|-----------|---------------|-----------------|
+| **ClamAV** | Servidores | Open source, detección de Windows malware |
+| **Sophos** | Empresarial | Protección avanzada, gestión centralizada |
+| **ESET** | Multiplataforma | Ligero, buen rendimiento |
+| **Comodo** | Gratuito | Firewall incluido, análisis en la nube |
+
+#### Configuración de antivirus en Linux
+
+```bash
+# Instalar ClamAV
+sudo apt update
+sudo apt install clamav clamav-daemon
+
+# Actualizar base de datos de firmas
+sudo freshclam
+
+# Escanear directorio
+clamscan -r /home/usuario/
+
+# Escanear y eliminar archivos infectados
+clamscan -r --remove /home/usuario/
+
+# Escanear con notificación de resultados
+clamscan -r -i /home/usuario/ > scan-results.txt
+
+# Programar escaneo diario con cron
+echo "0 2 * * * clamscan -r /home/ > /var/log/clamav-scan.log" | sudo crontab -
+```
+
+#### Mejores prácticas
+
+- **Mantener actualizado**: Base de datos de firmas y motor
+- **Escaneos regulares**: Programar análisis completos semanales
+- **No múltiples antivirus**: Pueden causar conflictos
+- **Complementar con sentido común**: El antivirus no es infalible
+- **Monitorear alertas**: Revisar y actuar sobre las notificaciones
+
+### Antimalware
+
+Los programas **antimalware** ofrecen protección más amplia que los antivirus tradicionales, detectando spyware, adware, PUPs (Potentially Unwanted Programs) y otros tipos de amenazas.
+
+#### Diferencias entre antivirus y antimalware
+
+| Aspecto | Antivirus | Antimalware |
+|---------|-----------|-------------|
+| **Enfoque** | Amenazas tradicionales (virus) | Amenazas modernas amplias |
+| **Cobertura** | Malware que se replica | Todo tipo de software malicioso |
+| **Detección** | Principalmente firmas | Múltiples técnicas |
+| **Objetivo** | Protección básica | Protección especializada |
+
+#### Principales herramientas antimalware
+
+**Malwarebytes:**
+- Especializado en detección de PUPs
+- Excelente para limpieza profunda
+- Versión gratuita y premium
+- No reemplaza al antivirus, lo complementa
+
+**Spybot Search & Destroy:**
+- Enfocado en spyware y adware
+- Inmunización del sistema
+- Gratuito para uso personal
+
+**HitmanPro:**
+- Análisis en la nube
+- Segunda opinión de detección
+- Ideal para limpieza post-infección
+
+**AdwCleaner:**
+- Especializado en adware y toolbars
+- Ligero y rápido
+- Gratuito
+
+#### Uso de Malwarebytes
+
+```bash
+# En Linux (instalación)
+wget https://downloads.malwarebytes.com/file/mb-linux
+chmod +x mb-linux
+sudo ./mb-linux
+
+# Actualizar base de datos
+mbam update
+
+# Escaneo rápido
+mbam scan
+
+# Escaneo completo
+mbam scan --rootfs /
+
+# Ver resultados
+mbam history
+```
+
+**En Windows:**
+```powershell
+# Instalación desde línea de comandos
+winget install Malwarebytes.Malwarebytes
+
+# Escaneo mediante interfaz gráfica o:
+# "C:\Program Files\Malwarebytes\Anti-Malware\mbam.exe" /scan
+```
+
+#### Estrategia de defensa en capas
+
+**Capa 1 - Prevención:**
+- Firewall activo
+- Actualizaciones automáticas
+- Control de aplicaciones (whitelisting)
+
+**Capa 2 - Detección:**
+- Antivirus con protección en tiempo real
+- EDR (Endpoint Detection and Response)
+- IDS/IPS de red
+
+**Capa 3 - Limpieza:**
+- Antimalware especializado
+- Herramientas de desinfección
+- Análisis forense si es necesario
+
+## Verificación del origen y autenticidad de las aplicaciones
+
+La verificación del software antes de su instalación es crucial para prevenir infecciones por malware.
+
+### Verificación de firmas digitales
+
+Las **firmas digitales** garantizan que el software no ha sido modificado y proviene del desarrollador legítimo.
+
+#### En Windows
+
+```powershell
+# Verificar firma digital de un ejecutable
+Get-AuthenticodeSignature "C:\ruta\archivo.exe"
+
+# Verificar múltiples archivos
+Get-ChildItem "C:\Descargas\*.exe" | Get-AuthenticodeSignature
+
+# Verificar certificado
+Get-AuthenticodeSignature "archivo.exe" | Select-Object -ExpandProperty SignerCertificate
+
+# Ver detalles del certificado
+certutil -verify archivo.exe
+```
+
+**Propiedades del archivo:**
+- Click derecho → Propiedades → Firmas digitales
+- Verificar el firmante coincide con el desarrollador esperado
+- Comprobar que el certificado es válido y no ha expirado
+
+#### En Linux
+
+```bash
+# Verificar paquete .deb
+dpkg-sig --verify paquete.deb
+
+# Verificar firma GPG de archivo descargado
+gpg --verify archivo.sig archivo
+
+# Importar clave pública del desarrollador
+gpg --keyserver keyserver.ubuntu.com --recv-keys KEY_ID
+
+# Verificar paquetes instalados
+debsums -c
+
+# Para paquetes RPM
+rpm --checksig paquete.rpm
+```
+
+### Verificación de checksums (hashes)
+
+Los **checksums** permiten verificar que un archivo no ha sido modificado o corrompido.
+
+#### Algoritmos comunes
+
+| Algoritmo | Bits | Seguridad | Uso |
+|-----------|------|-----------|-----|
+| **MD5** | 128 | Baja | Verificación de integridad básica |
+| **SHA-1** | 160 | Media | En desuso |
+| **SHA-256** | 256 | Alta | Recomendado actualmente |
+| **SHA-512** | 512 | Muy alta | Máxima seguridad |
+
+#### Verificación en Linux
+
+```bash
+# Calcular SHA-256
+sha256sum archivo.iso
+
+# Verificar contra hash publicado
+echo "HASH_ESPERADO archivo.iso" | sha256sum -c
+
+# Verificar múltiples archivos
+sha256sum -c SHA256SUMS
+
+# MD5 (menos seguro)
+md5sum archivo.iso
+
+# Ejemplo completo de descarga verificada
+# 1. Descargar archivo
+wget https://ejemplo.com/software.tar.gz
+
+# 2. Descargar archivo de checksums
+wget https://ejemplo.com/software.tar.gz.sha256
+
+# 3. Verificar
+sha256sum -c software.tar.gz.sha256
+```
+
+#### Verificación en Windows
+
+```powershell
+# Calcular SHA-256
+Get-FileHash archivo.exe -Algorithm SHA256
+
+# Calcular MD5
+Get-FileHash archivo.exe -Algorithm MD5
+
+# Comparar con hash esperado
+$hash = Get-FileHash archivo.exe -Algorithm SHA256
+if ($hash.Hash -eq "HASH_ESPERADO") {
+    Write-Host "✓ Hash válido" -ForegroundColor Green
+} else {
+    Write-Host "✗ Hash no coincide" -ForegroundColor Red
+}
+
+# Certificado de múltiples archivos
+Get-ChildItem *.exe | Get-FileHash -Algorithm SHA256 | Export-Csv hashes.csv
+```
+
+### Fuentes confiables de software
+
+#### Repositorios oficiales
+
+**Linux:**
+- Repositorios oficiales de la distribución
+- PPA (Personal Package Archive) verificados
+- Snap Store y Flathub
+
+```bash
+# Verificar repositorios configurados
+cat /etc/apt/sources.list
+ls /etc/apt/sources.list.d/
+
+# Listar paquetes por repositorio
+apt policy paquete
+
+# Instalar solo de repositorios oficiales
+sudo apt install paquete
+```
+
+**Windows:**
+- Microsoft Store
+- Windows Package Manager (winget)
+- Chocolatey (repositorio comunitario)
+
+```powershell
+# Instalar desde winget
+winget search nombre-app
+winget install nombre-app
+
+# Listar aplicaciones instaladas
+winget list
+```
+
+#### Sitios web oficiales
+
+**Verificaciones a realizar:**
+- ✓ HTTPS en el sitio web
+- ✓ Certificado SSL válido
+- ✓ Dominio correcto (evitar typosquatting)
+- ✓ Checksums o firmas digitales publicadas
+- ✓ Contacto y soporte oficial
+
+**Señales de alerta:**
+- ✗ Sitio con aspecto no profesional
+- ✗ Errores ortográficos o gramática pobre
+- ✗ Presión para descargar inmediatamente
+- ✗ Solicitud de desactivar antivirus
+- ✗ Promesas irrealistas
+
+### Análisis previo a la instalación
+
+#### VirusTotal
+
+```bash
+# Subir archivo a VirusTotal (requiere API key)
+curl -X POST 'https://www.virustotal.com/vtapi/v2/file/scan' \
+  -F 'file=@archivo.exe' \
+  -F 'apikey=YOUR_API_KEY'
+
+# Consultar hash
+curl 'https://www.virustotal.com/vtapi/v2/file/report' \
+  -d 'resource=HASH_SHA256' \
+  -d 'apikey=YOUR_API_KEY'
+```
+
+**Interfaz web:** https://www.virustotal.com
+- Arrastrar archivo o introducir URL
+- Esperar análisis de 70+ antivirus
+- Revisar resultados y comportamiento
+
+#### Sandbox locales
+
+**Cuckoo Sandbox (Linux):**
+```bash
+# Instalar Cuckoo
+sudo apt install python3-pip mongodb postgresql
+pip3 install cuckoo
+
+# Inicializar
+cuckoo init
+
+# Enviar archivo para análisis
+cuckoo submit archivo.exe
+
+# Ver resultados
+cuckoo web
+```
+
+**Windows Sandbox:**
+- Entorno aislado incluido en Windows 10/11 Pro
+- Ejecutar aplicaciones sospechosas de forma segura
+- Se elimina todo al cerrar
+
+### Mejores prácticas de instalación
+
+**Antes de instalar:**
+1. Verificar el origen del software
+2. Comprobar firmas digitales o checksums
+3. Leer reseñas y comentarios de otros usuarios
+4. Buscar información sobre el desarrollador
+5. Escanear con antivirus/antimalware
+
+**Durante la instalación:**
+1. Elegir instalación personalizada
+2. Leer cada paso del asistente
+3. Desmarcar software adicional
+4. No aceptar cambios en navegador
+5. Revisar permisos solicitados
+
+**Después de instalar:**
+1. Monitorear comportamiento del programa
+2. Verificar conexiones de red establecidas
+3. Revisar procesos en ejecución
+4. Comprobar cambios en el sistema
+5. Mantener el software actualizado
+
+### Políticas de seguridad organizacionales
+
+**Control de aplicaciones:**
+```bash
+# AppArmor (Linux)
+sudo aa-status
+sudo aa-enforce /etc/apparmor.d/*
+
+# Listar perfiles
+sudo aa-status
+
+# Windows AppLocker (PowerShell como Admin)
+Get-AppLockerPolicy -Local
+Set-AppLockerPolicy -XMLPolicy policy.xml
+```
+
+**Lista blanca de aplicaciones:**
+- Solo software aprobado puede ejecutarse
+- Reduce superficie de ataque drásticamente
+- Requiere gestión y actualización constante
+
+**Educación del usuario:**
+- Formación en identificación de phishing
+- Políticas de descarga de software
+- Procedimientos de reporte de incidentes
+- Concienciación sobre ingeniería social
+
+:::warning Importante
+Ninguna herramienta de seguridad es 100% efectiva. La combinación de múltiples capas de protección (defensa en profundidad) junto con buenas prácticas de usuario es la mejor estrategia contra el malware.
+:::
+
+:::tip Recomendación
+Mantén siempre actualizado tu sistema operativo, aplicaciones y herramientas de seguridad. Las actualizaciones no solo añaden funcionalidades, sino que también corrigen vulnerabilidades de seguridad críticas.
+:::
+

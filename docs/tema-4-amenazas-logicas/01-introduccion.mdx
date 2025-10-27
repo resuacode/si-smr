@@ -26,3 +26,1283 @@ En este tema veremos como aplicar medidas de seguridad activa para proteger al s
    - Aplicación de técnicas de recuperación de datos
    - Planes de contingencia para actuar ante fallos de seguridad
 
+## Ejercicios Prácticos
+
+A continuación se presentan ejercicios prácticos para aplicar los conocimientos adquiridos en este tema. Utiliza las máquinas virtuales del laboratorio SAD para realizarlos.
+
+:::info Máquinas del Laboratorio
+Para estos ejercicios utilizarás las siguientes máquinas virtuales:
+- **Ubuntu Server** (192.168.56.10) - admin/adminSAD2024!
+- **Storage Backup** (192.168.56.13) - backup/backup123
+- **Windows Server** (192.168.56.11) - labadmin/Password123!
+- **Windows Client** (192.168.56.12) - cliente/User123!
+- **Kali Security** (192.168.56.20) - kali/kali
+
+Asegúrate de tener las máquinas encendidas antes de comenzar.
+:::
+
+### Ejercicio 1: Instalación y configuración de ClamAV
+
+**Objetivo:** Instalar y configurar ClamAV en Ubuntu Server para protección antivirus básica.
+
+**Tareas:**
+1. Instala ClamAV en Ubuntu Server
+2. Actualiza la base de datos de virus
+3. Realiza un escaneo completo del directorio /home
+4. Configura un escaneo automático diario
+5. Analiza los resultados y genera un informe
+
+<details>
+<summary>Ver solución</summary>
+
+```bash
+# Conectar a Ubuntu Server
+ssh admin@192.168.56.10
+
+# 1. Instalar ClamAV
+sudo apt update
+sudo apt install clamav clamav-daemon -y
+
+# Verificar instalación
+clamscan --version
+
+# 2. Actualizar base de datos de virus
+# Detener el servicio de actualización automática primero
+sudo systemctl stop clamav-freshclam
+
+# Actualizar manualmente
+sudo freshclam
+
+# Reiniciar el servicio
+sudo systemctl start clamav-freshclam
+sudo systemctl status clamav-freshclam
+
+# 3. Escaneo completo del directorio /home
+# Escaneo básico (solo reportar)
+clamscan -r /home
+
+# Escaneo con más detalles
+clamscan -r -i /home  # Solo mostrar archivos infectados
+
+# Escaneo guardando log
+clamscan -r -i -l /tmp/scan-home.log /home
+
+# Ver resultados
+cat /tmp/scan-home.log
+
+# 4. Configurar escaneo automático diario
+# Crear script de escaneo
+sudo tee /usr/local/bin/daily-scan.sh << 'EOF'
+#!/bin/bash
+FECHA=$(date +%Y%m%d)
+LOG_DIR="/var/log/clamav-scans"
+LOG_FILE="$LOG_DIR/scan-$FECHA.log"
+
+# Crear directorio de logs si no existe
+mkdir -p $LOG_DIR
+
+# Ejecutar escaneo
+echo "=== Escaneo ClamAV - $FECHA ===" > $LOG_FILE
+date >> $LOG_FILE
+clamscan -r -i /home /var/www >> $LOG_FILE 2>&1
+
+# Verificar si se encontraron virus
+if grep -q "Infected files: 0" $LOG_FILE; then
+    echo "Escaneo completado: No se encontraron amenazas" >> $LOG_FILE
+else
+    echo "ALERTA: Se encontraron archivos infectados" >> $LOG_FILE
+    # Enviar alerta (si tienes mail configurado)
+    # mail -s "Alerta ClamAV" admin@domain.com < $LOG_FILE
+fi
+
+# Limpiar logs antiguos (más de 30 días)
+find $LOG_DIR -name "scan-*.log" -mtime +30 -delete
+EOF
+
+# Dar permisos de ejecución
+sudo chmod +x /usr/local/bin/daily-scan.sh
+
+# Probar el script
+sudo /usr/local/bin/daily-scan.sh
+
+# Programar con cron (ejecutar a las 3:00 AM)
+echo "0 3 * * * root /usr/local/bin/daily-scan.sh" | sudo tee -a /etc/crontab
+
+# Verificar tarea programada
+sudo grep daily-scan /etc/crontab
+
+# 5. Analizar resultados
+# Ver último escaneo
+ls -lh /var/log/clamav-scans/
+cat /var/log/clamav-scans/scan-*.log | tail -20
+
+# Estadísticas del escaneo
+grep "Known viruses:" /var/log/clamav-scans/scan-*.log
+grep "Scanned files:" /var/log/clamav-scans/scan-*.log
+grep "Infected files:" /var/log/clamav-scans/scan-*.log
+```
+
+**Análisis de resultados:**
+- Verificar que la base de datos de virus está actualizada
+- Confirmar que el escaneo se ejecuta correctamente
+- Comprobar que no hay archivos infectados
+- Validar que el cron está configurado correctamente
+
+**Documentación adicional:**
+- Registrar el número de archivos escaneados
+- Tiempo total del escaneo
+- Frecuencia de actualización de firmas
+
+</details>
+
+---
+
+### Ejercicio 2: Verificación de integridad con AIDE
+
+**Objetivo:** Implementar AIDE para detectar cambios no autorizados en archivos críticos del sistema.
+
+**Tareas:**
+1. Instala AIDE en Ubuntu Server
+2. Configura AIDE para monitorear directorios críticos
+3. Inicializa la base de datos de AIDE
+4. Realiza cambios en el sistema y detecta las modificaciones
+5. Actualiza la base de datos después de cambios legítimos
+
+<details>
+<summary>Ver solución</summary>
+
+```bash
+# Conectar a Ubuntu Server
+ssh admin@192.168.56.10
+
+# 1. Instalar AIDE
+sudo apt update
+sudo apt install aide aide-common -y
+
+# 2. Configurar AIDE
+# Editar configuración
+sudo nano /etc/aide/aide.conf
+
+# Añadir/modificar estas líneas al final del archivo:
+# Directorios a monitorear
+/bin R+b+sha256
+/sbin R+b+sha256
+/usr/bin R+b+sha256
+/usr/sbin R+b+sha256
+/lib R+b+sha256
+/etc R+b+sha256
+
+# Excluir directorios que cambian frecuentemente
+!/var/log
+!/var/cache
+!/var/tmp
+!/tmp
+!/proc
+!/sys
+!/run
+
+# 3. Inicializar base de datos
+sudo aideinit
+
+# Esto puede tardar varios minutos
+# Se creará /var/lib/aide/aide.db.new
+
+# Copiar base de datos inicial
+sudo cp /var/lib/aide/aide.db.new /var/lib/aide/aide.db
+
+# 4. Realizar cambios y detectar modificaciones
+# Crear un archivo de prueba en /etc
+echo "Archivo de prueba" | sudo tee /etc/test-file.conf
+
+# Modificar un archivo existente
+echo "# Modificación de prueba" | sudo tee -a /etc/hosts
+
+# Ejecutar verificación de integridad
+sudo aide --check
+
+# Ver resultados detallados
+sudo aide --check | tee /tmp/aide-check.log
+
+# Analizar los cambios detectados
+grep "added:" /tmp/aide-check.log
+grep "changed:" /tmp/aide-check.log
+grep "removed:" /tmp/aide-check.log
+
+# 5. Actualizar base de datos (después de cambios legítimos)
+# Si los cambios son válidos, actualizar la base de datos
+sudo aide --update
+
+# Copiar la nueva base de datos
+sudo cp /var/lib/aide/aide.db.new /var/lib/aide/aide.db
+
+# Verificar que ya no hay cambios
+sudo aide --check
+
+# Eliminar archivos de prueba
+sudo rm /etc/test-file.conf
+
+# Restaurar /etc/hosts
+sudo sed -i '/# Modificación de prueba/d' /etc/hosts
+
+# Actualizar base de datos nuevamente
+sudo aide --update
+sudo cp /var/lib/aide/aide.db.new /var/lib/aide/aide.db
+
+# Programar verificación automática diaria
+sudo tee /usr/local/bin/aide-check.sh << 'EOF'
+#!/bin/bash
+FECHA=$(date +%Y%m%d)
+LOG_FILE="/var/log/aide/check-$FECHA.log"
+
+mkdir -p /var/log/aide
+
+aide --check > $LOG_FILE 2>&1
+
+if grep -q "changed:" $LOG_FILE || grep -q "added:" $LOG_FILE || grep -q "removed:" $LOG_FILE; then
+    echo "ALERTA: Cambios detectados en el sistema" | mail -s "AIDE Alert" admin@domain.com
+fi
+
+# Limpiar logs antiguos
+find /var/log/aide -name "check-*.log" -mtime +60 -delete
+EOF
+
+sudo chmod +x /usr/local/bin/aide-check.sh
+
+# Programar con cron (5:00 AM diario)
+echo "0 5 * * * root /usr/local/bin/aide-check.sh" | sudo tee -a /etc/crontab
+```
+
+**Interpretación de resultados:**
+- **added**: Archivos nuevos detectados
+- **changed**: Archivos modificados (tamaño, permisos, contenido)
+- **removed**: Archivos eliminados
+
+**Mejores prácticas:**
+- Actualizar base de datos después de cambios planificados
+- Revisar logs regularmente
+- Documentar cambios legítimos
+- Configurar alertas para cambios críticos
+
+</details>
+
+---
+
+### Ejercicio 3: Análisis de logs de seguridad con fail2ban
+
+**Objetivo:** Configurar fail2ban para proteger SSH contra ataques de fuerza bruta.
+
+**Tareas:**
+1. Instala fail2ban en Ubuntu Server
+2. Configura protección para SSH
+3. Simula intentos de login fallidos desde Kali
+4. Verifica que la IP se bloquea automáticamente
+5. Revisa y gestiona las IPs bloqueadas
+
+<details>
+<summary>Ver solución</summary>
+
+```bash
+# En Ubuntu Server
+ssh admin@192.168.56.10
+
+# 1. Instalar fail2ban
+sudo apt update
+sudo apt install fail2ban -y
+
+# Verificar instalación
+fail2ban-client --version
+
+# 2. Configurar fail2ban
+# Copiar configuración por defecto
+sudo cp /etc/fail2ban/jail.conf /etc/fail2ban/jail.local
+
+# Editar configuración
+sudo nano /etc/fail2ban/jail.local
+
+# Buscar y modificar estas secciones:
+# [DEFAULT]
+# bantime = 3600  # Tiempo de baneo en segundos (1 hora)
+# findtime = 600  # Ventana de tiempo para contar intentos
+# maxretry = 3    # Número de intentos antes de banear
+
+# [sshd]
+# enabled = true
+# port = ssh
+# logpath = %(sshd_log)s
+# backend = %(sshd_backend)s
+
+# Configuración específica para SSH
+sudo tee /etc/fail2ban/jail.d/sshd.conf << 'EOF'
+[sshd]
+enabled = true
+port = ssh
+filter = sshd
+logpath = /var/log/auth.log
+maxretry = 3
+bantime = 1800
+findtime = 600
+EOF
+
+# Iniciar y habilitar fail2ban
+sudo systemctl enable fail2ban
+sudo systemctl start fail2ban
+sudo systemctl status fail2ban
+
+# 3. Simular intentos fallidos desde Kali
+# En Kali Security (abrir otra terminal)
+ssh kali@192.168.56.20
+
+# Intentar conectar con contraseña incorrecta varias veces
+ssh usuario-falso@192.168.56.10
+# Introducir contraseña incorrecta 4 veces seguidas
+
+# 4. Verificar bloqueo en Ubuntu Server
+# Ver estado de fail2ban
+sudo fail2ban-client status
+
+# Ver estado específico de SSH
+sudo fail2ban-client status sshd
+
+# Ver IPs baneadas
+sudo fail2ban-client status sshd | grep "Banned IP"
+
+# Ver reglas de iptables creadas
+sudo iptables -L -n | grep f2b
+
+# Revisar logs de fail2ban
+sudo tail -f /var/log/fail2ban.log
+
+# Ver detalles del baneo
+grep "Ban" /var/log/fail2ban.log | tail -10
+
+# 5. Gestionar IPs bloqueadas
+# Desbanear una IP específica
+sudo fail2ban-client set sshd unbanip 192.168.56.20
+
+# Verificar que se desbaneó
+sudo fail2ban-client status sshd
+
+# Ver estadísticas
+sudo fail2ban-client status
+
+# Monitorear en tiempo real
+sudo tail -f /var/log/fail2ban.log &
+sudo tail -f /var/log/auth.log &
+
+# Crear script de reporte
+sudo tee /usr/local/bin/fail2ban-report.sh << 'EOF'
+#!/bin/bash
+echo "=== Reporte Fail2ban - $(date) ==="
+echo ""
+echo "Estado general:"
+fail2ban-client status
+echo ""
+echo "IPs baneadas en SSH:"
+fail2ban-client status sshd | grep "Banned IP"
+echo ""
+echo "Últimos baneos:"
+grep "Ban" /var/log/fail2ban.log | tail -10
+echo ""
+echo "Estadísticas por país (si fail2ban-geoip está instalado):"
+grep "Ban" /var/log/fail2ban.log | tail -20
+EOF
+
+sudo chmod +x /usr/local/bin/fail2ban-report.sh
+
+# Ejecutar reporte
+sudo /usr/local/bin/fail2ban-report.sh
+
+# Configurar whitelist (IPs que nunca se banearán)
+sudo nano /etc/fail2ban/jail.local
+# Añadir bajo [DEFAULT]:
+# ignoreip = 127.0.0.1/8 ::1 192.168.56.0/24
+
+# Reiniciar fail2ban
+sudo systemctl restart fail2ban
+```
+
+**Verificación:**
+- Confirmar que fail2ban está activo
+- Validar que las IPs se banean automáticamente
+- Comprobar que las reglas de iptables se crean correctamente
+- Verificar que las IPs de la whitelist no se banean
+
+**Configuraciones adicionales:**
+- Protección para Apache: jail para apache-auth, apache-badbots
+- Protección para servicios adicionales según necesidad
+
+</details>
+
+---
+
+### Ejercicio 4: Gestión de actualizaciones en Windows Server
+
+**Objetivo:** Configurar y gestionar actualizaciones de Windows Server usando PowerShell.
+
+**Tareas:**
+1. Verifica el estado actual de actualizaciones
+2. Busca actualizaciones disponibles
+3. Instala actualizaciones críticas y de seguridad
+4. Configura actualizaciones automáticas
+5. Genera un reporte de actualizaciones instaladas
+
+<details>
+<summary>Ver solución</summary>
+
+```powershell
+# Conectar a Windows Server vía RDP
+# Usuario: labadmin / Password123!
+
+# Abrir PowerShell como Administrador
+
+# 1. Verificar estado actual de actualizaciones
+# Instalar módulo PSWindowsUpdate si no está disponible
+Install-Module PSWindowsUpdate -Force
+Import-Module PSWindowsUpdate
+
+# Ver última actualización instalada
+Get-HotFix | Sort-Object InstalledOn -Descending | Select-Object -First 10
+
+# Verificar servicios de actualización
+Get-Service -Name wuauserv, bits
+Get-Service wuauserv | Select-Object Name, Status, StartType
+
+# 2. Buscar actualizaciones disponibles
+Get-WindowsUpdate
+
+# Ver solo actualizaciones de seguridad
+Get-WindowsUpdate -Category "Security Updates"
+
+# Ver actualizaciones críticas
+Get-WindowsUpdate -Category "Critical Updates"
+
+# Listar todas las categorías disponibles
+Get-WindowsUpdate | Group-Object Category | Select-Object Name, Count
+
+# 3. Instalar actualizaciones críticas y de seguridad
+# Ver qué se va a instalar (dry-run)
+Get-WindowsUpdate -Category "Security Updates","Critical Updates" -Download
+
+# Descargar actualizaciones sin instalar
+Get-WindowsUpdate -Category "Security Updates","Critical Updates" -Download -AcceptAll
+
+# Instalar actualizaciones (sin reinicio automático)
+Install-WindowsUpdate -Category "Security Updates","Critical Updates" -AcceptAll -IgnoreReboot
+
+# Instalar todas las actualizaciones con reinicio automático
+# Install-WindowsUpdate -AcceptAll -AutoReboot
+
+# Ver progreso de instalación
+Get-WUHistory | Select-Object -First 5
+
+# 4. Configurar actualizaciones automáticas
+# Configurar Windows Update para descargar automáticamente
+Set-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate\AU" `
+    -Name "AUOptions" -Value 4  # 4 = Descargar e instalar automáticamente
+
+# Configurar día y hora de instalación
+Set-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate\AU" `
+    -Name "ScheduledInstallDay" -Value 0  # 0 = Todos los días
+Set-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate\AU" `
+    -Name "ScheduledInstallTime" -Value 3  # 3 AM
+
+# Habilitar actualizaciones automáticas
+Set-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate\AU" `
+    -Name "NoAutoUpdate" -Value 0
+
+# Reiniciar servicio de Windows Update
+Restart-Service wuauserv
+
+# 5. Generar reporte de actualizaciones
+# Crear script de reporte
+$ReportScript = @'
+# Reporte de Actualizaciones de Windows
+$Fecha = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
+$ReportFile = "C:\Reports\WindowsUpdate-Report-$(Get-Date -Format 'yyyyMMdd').txt"
+
+# Crear directorio de reportes
+New-Item -ItemType Directory -Path "C:\Reports" -Force | Out-Null
+
+# Generar reporte
+@"
+=== REPORTE DE ACTUALIZACIONES DE WINDOWS ===
+Fecha: $Fecha
+Servidor: $env:COMPUTERNAME
+
+=== ÚLTIMAS ACTUALIZACIONES INSTALADAS ===
+"@ | Out-File $ReportFile
+
+Get-HotFix | Sort-Object InstalledOn -Descending | Select-Object -First 20 | 
+    Format-Table -AutoSize | Out-File $ReportFile -Append
+
+@"
+
+=== ACTUALIZACIONES DISPONIBLES ===
+"@ | Out-File $ReportFile -Append
+
+Get-WindowsUpdate | Format-Table -AutoSize | Out-File $ReportFile -Append
+
+@"
+
+=== HISTORIAL DE ACTUALIZACIONES (Últimas 10) ===
+"@ | Out-File $ReportFile -Append
+
+Get-WUHistory | Select-Object -First 10 | 
+    Format-Table Date, Title, Result -AutoSize | Out-File $ReportFile -Append
+
+@"
+
+=== SERVICIOS DE ACTUALIZACIÓN ===
+"@ | Out-File $ReportFile -Append
+
+Get-Service wuauserv, bits | 
+    Format-Table Name, Status, StartType -AutoSize | Out-File $ReportFile -Append
+
+Write-Host "Reporte generado: $ReportFile"
+'@
+
+# Guardar script
+$ReportScript | Out-File "C:\Scripts\Update-Report.ps1"
+
+# Ejecutar script
+PowerShell.exe -ExecutionPolicy Bypass -File "C:\Scripts\Update-Report.ps1"
+
+# Ver reporte
+Get-Content "C:\Reports\WindowsUpdate-Report-*.txt" | More
+
+# Programar tarea para reporte semanal
+$Action = New-ScheduledTaskAction -Execute "PowerShell.exe" `
+    -Argument "-ExecutionPolicy Bypass -File C:\Scripts\Update-Report.ps1"
+
+$Trigger = New-ScheduledTaskTrigger -Weekly -DaysOfWeek Monday -At 9:00AM
+
+$Principal = New-ScheduledTaskPrincipal -UserId "SYSTEM" -LogonType ServiceAccount
+
+Register-ScheduledTask -TaskName "WindowsUpdateReport" `
+    -Action $Action `
+    -Trigger $Trigger `
+    -Principal $Principal `
+    -Description "Reporte semanal de actualizaciones de Windows"
+
+# Verificar tarea programada
+Get-ScheduledTask | Where-Object {$_.TaskName -eq "WindowsUpdateReport"}
+
+# Ver actualizaciones pendientes de reinicio
+Get-WURebootStatus
+
+# Si es necesario reiniciar
+# Restart-Computer -Force
+```
+
+**Verificación:**
+- Confirmar que las actualizaciones se descargaron correctamente
+- Validar la instalación de parches críticos
+- Comprobar configuración de actualizaciones automáticas
+- Revisar el reporte generado
+
+**Notas importantes:**
+- Crear punto de restauración antes de actualizar en producción
+- Probar actualizaciones en entorno de desarrollo primero
+- Documentar cambios y reiniciar en ventana de mantenimiento
+
+</details>
+
+---
+
+### Ejercicio 5: Verificación de firmas digitales y checksums
+
+**Objetivo:** Aprender a verificar la autenticidad e integridad de archivos descargados.
+
+**Tareas:**
+1. Descarga un archivo de software desde un repositorio oficial
+2. Verifica la firma digital del paquete
+3. Calcula y compara checksums (SHA-256)
+4. Documenta el proceso de verificación
+5. Crea un script automatizado de verificación
+
+<details>
+<summary>Ver solución</summary>
+
+```bash
+# En Ubuntu Server
+ssh admin@192.168.56.10
+
+# 1. Descargar archivo de ejemplo
+# Vamos a descargar un paquete oficial de Ubuntu
+mkdir -p ~/downloads
+cd ~/downloads
+
+# Descargar archivo de paquete
+wget http://archive.ubuntu.com/ubuntu/pool/main/n/nano/nano_6.2-1_amd64.deb
+
+# Descargar archivo SHA256SUMS oficial
+wget http://archive.ubuntu.com/ubuntu/pool/main/n/nano/SHA256SUMS 2>/dev/null || true
+
+# Si no hay SHA256SUMS, lo crearemos para el ejercicio
+# Calcular checksum del archivo descargado
+sha256sum nano_6.2-1_amd64.deb > nano.sha256
+
+# 2. Verificar firmas digitales
+# Verificar firma de paquete .deb
+dpkg-sig --verify nano_6.2-1_amd64.deb
+
+# Ver información del paquete
+dpkg --info nano_6.2-1_amd64.deb
+
+# Verificar integridad del paquete
+dpkg --contents nano_6.2-1_amd64.deb | head -20
+
+# Para verificar GPG (ejemplo con archivo firmado)
+# Importar clave pública del desarrollador
+# gpg --keyserver keyserver.ubuntu.com --recv-keys KEY_ID
+# gpg --verify archivo.sig archivo
+
+# 3. Calcular y comparar checksums
+# Calcular SHA-256
+sha256sum nano_6.2-1_amd64.deb
+
+# Guardar checksum
+sha256sum nano_6.2-1_amd64.deb > nano-verificado.sha256
+
+# Verificar checksum
+sha256sum -c nano-verificado.sha256
+
+# Calcular otros tipos de hash
+md5sum nano_6.2-1_amd64.deb
+sha1sum nano_6.2-1_amd64.deb
+sha512sum nano_6.2-1_amd64.deb
+
+# Comparar manualmente
+EXPECTED_HASH="a1b2c3d4..."  # Hash esperado del sitio oficial
+ACTUAL_HASH=$(sha256sum nano_6.2-1_amd64.deb | cut -d' ' -f1)
+
+if [ "$EXPECTED_HASH" = "$ACTUAL_HASH" ]; then
+    echo "✓ Checksum válido - Archivo íntegro"
+else
+    echo "✗ Checksum NO válido - Archivo posiblemente corrupto o modificado"
+fi
+
+# 4. Documentar proceso
+tee ~/downloads/verification-log.txt << EOF
+=== Verificación de Integridad de Software ===
+Fecha: $(date)
+Usuario: $(whoami)
+Sistema: $(uname -a)
+
+Archivo: nano_6.2-1_amd64.deb
+Tamaño: $(ls -lh nano_6.2-1_amd64.deb | awk '{print $5}')
+SHA-256: $(sha256sum nano_6.2-1_amd64.deb | cut -d' ' -f1)
+MD5: $(md5sum nano_6.2-1_amd64.deb | cut -d' ' -f1)
+
+Verificación: $(sha256sum -c nano-verificado.sha256 && echo "EXITOSA" || echo "FALLIDA")
+
+Información del paquete:
+$(dpkg --info nano_6.2-1_amd64.deb | grep -E "Package:|Version:|Architecture:")
+EOF
+
+cat ~/downloads/verification-log.txt
+
+# 5. Script automatizado de verificación
+sudo tee /usr/local/bin/verify-download.sh << 'EOF'
+#!/bin/bash
+
+# Script de verificación de descargas
+# Uso: verify-download.sh <archivo> <checksum_esperado> [algoritmo]
+
+if [ $# -lt 2 ]; then
+    echo "Uso: $0 <archivo> <checksum_esperado> [sha256|sha512|md5]"
+    exit 1
+fi
+
+ARCHIVO="$1"
+CHECKSUM_ESPERADO="$2"
+ALGORITMO="${3:-sha256}"
+
+# Verificar que el archivo existe
+if [ ! -f "$ARCHIVO" ]; then
+    echo "✗ Error: Archivo no encontrado: $ARCHIVO"
+    exit 1
+fi
+
+# Calcular checksum
+case $ALGORITMO in
+    sha256)
+        CHECKSUM_ACTUAL=$(sha256sum "$ARCHIVO" | cut -d' ' -f1)
+        ;;
+    sha512)
+        CHECKSUM_ACTUAL=$(sha512sum "$ARCHIVO" | cut -d' ' -f1)
+        ;;
+    md5)
+        CHECKSUM_ACTUAL=$(md5sum "$ARCHIVO" | cut -d' ' -f1)
+        ;;
+    *)
+        echo "✗ Algoritmo no soportado: $ALGORITMO"
+        exit 1
+        ;;
+esac
+
+# Mostrar información
+echo "=== Verificación de Integridad ==="
+echo "Archivo: $ARCHIVO"
+echo "Tamaño: $(ls -lh "$ARCHIVO" | awk '{print $5}')"
+echo "Algoritmo: $ALGORITMO"
+echo ""
+echo "Checksum esperado: $CHECKSUM_ESPERADO"
+echo "Checksum calculado: $CHECKSUM_ACTUAL"
+echo ""
+
+# Comparar
+if [ "$CHECKSUM_ESPERADO" = "$CHECKSUM_ACTUAL" ]; then
+    echo "✓ VERIFICACIÓN EXITOSA - El archivo es íntegro y auténtico"
+    exit 0
+else
+    echo "✗ VERIFICACIÓN FALLIDA - El archivo puede estar corrupto o modificado"
+    echo "⚠ NO instalar este archivo"
+    exit 1
+fi
+EOF
+
+sudo chmod +x /usr/local/bin/verify-download.sh
+
+# Probar script
+HASH=$(sha256sum nano_6.2-1_amd64.deb | cut -d' ' -f1)
+/usr/local/bin/verify-download.sh nano_6.2-1_amd64.deb "$HASH" sha256
+
+# Probar con hash incorrecto (debe fallar)
+/usr/local/bin/verify-download.sh nano_6.2-1_amd64.deb "abc123" sha256
+```
+
+**En Windows (PowerShell):**
+
+```powershell
+# Conectar a Windows Server
+# PowerShell como Administrador
+
+# Descargar archivo de ejemplo
+$DownloadPath = "C:\Downloads"
+New-Item -ItemType Directory -Path $DownloadPath -Force
+
+# Ejemplo: Descargar herramienta de Microsoft
+$Url = "https://aka.ms/vs/17/release/vc_redist.x64.exe"
+$File = "$DownloadPath\vc_redist.x64.exe"
+Invoke-WebRequest -Uri $Url -OutFile $File
+
+# Calcular hash SHA-256
+$Hash = Get-FileHash -Path $File -Algorithm SHA256
+$Hash | Format-List
+
+# Guardar hash
+$Hash.Hash | Out-File "$File.sha256"
+
+# Verificar hash guardado
+$ExpectedHash = Get-Content "$File.sha256"
+$ActualHash = (Get-FileHash -Path $File -Algorithm SHA256).Hash
+
+if ($ExpectedHash -eq $ActualHash) {
+    Write-Host "✓ Hash válido" -ForegroundColor Green
+} else {
+    Write-Host "✗ Hash NO válido" -ForegroundColor Red
+}
+
+# Verificar firma digital
+Get-AuthenticodeSignature -FilePath $File | Format-List
+
+# Función de verificación
+function Verify-FileIntegrity {
+    param(
+        [string]$FilePath,
+        [string]$ExpectedHash,
+        [string]$Algorithm = "SHA256"
+    )
+    
+    if (-not (Test-Path $FilePath)) {
+        Write-Host "✗ Archivo no encontrado" -ForegroundColor Red
+        return $false
+    }
+    
+    $ActualHash = (Get-FileHash -Path $FilePath -Algorithm $Algorithm).Hash
+    
+    Write-Host "=== Verificación de Integridad ===" -ForegroundColor Cyan
+    Write-Host "Archivo: $FilePath"
+    Write-Host "Algoritmo: $Algorithm"
+    Write-Host "Hash esperado: $ExpectedHash"
+    Write-Host "Hash calculado: $ActualHash"
+    
+    if ($ExpectedHash -eq $ActualHash) {
+        Write-Host "✓ VERIFICACIÓN EXITOSA" -ForegroundColor Green
+        return $true
+    } else {
+        Write-Host "✗ VERIFICACIÓN FALLIDA" -ForegroundColor Red
+        return $false
+    }
+}
+
+# Usar función
+Verify-FileIntegrity -FilePath $File -ExpectedHash $ExpectedHash
+```
+
+**Documentación:**
+- Registrar fuente de descarga
+- Guardar checksums verificados
+- Documentar proceso de verificación
+- Mantener log de archivos verificados
+
+</details>
+
+---
+
+### Ejercicio 6: Recuperación de archivos eliminados
+
+**Objetivo:** Practicar técnicas de recuperación de archivos eliminados accidentalmente.
+
+**Tareas:**
+1. Crea archivos de prueba y elimínalos
+2. Utiliza herramientas de recuperación para restaurarlos
+3. Documenta el proceso y las limitaciones
+4. Implementa medidas preventivas
+
+<details>
+<summary>Ver solución</summary>
+
+```bash
+# En Ubuntu Server
+ssh admin@192.168.56.10
+
+# 1. Preparar entorno de prueba
+# IMPORTANTE: Trabajar en un disco/partición de prueba
+
+# Crear directorio de prueba
+mkdir -p ~/recovery-test
+cd ~/recovery-test
+
+# Crear archivos de prueba
+echo "Documento importante 1" > documento1.txt
+echo "Documento importante 2" > documento2.txt
+echo "Hoja de cálculo de ventas" > ventas.csv
+dd if=/dev/urandom of=imagen.jpg bs=1M count=5
+echo "Configuración crítica" > config.conf
+
+# Ver archivos creados
+ls -lh
+md5sum * > checksums-originales.md5
+
+# "Eliminar" archivos (simular eliminación accidental)
+rm documento1.txt documento2.txt ventas.csv imagen.jpg
+
+# Verificar eliminación
+ls -lh
+
+# 2. Recuperación con TestDisk/PhotoRec
+# Instalar herramientas
+sudo apt update
+sudo apt install testdisk -y
+
+# MÉTODO 1: PhotoRec (más simple para archivos)
+# Crear directorio de recuperación
+mkdir -p ~/recovery-output
+
+# Ejecutar PhotoRec en modo no interactivo (para archivos específicos)
+# Nota: PhotoRec funciona mejor en modo interactivo
+sudo photorec /log /d ~/recovery-output /cmd /dev/sda1 search
+
+# En modo interactivo (recomendado):
+sudo photorec
+# 1. Seleccionar dispositivo
+# 2. Seleccionar partición
+# 3. Seleccionar tipo de sistema de archivos
+# 4. Especificar directorio de salida
+# 5. Esperar recuperación
+
+# MÉTODO 2: Extundelete (para ext3/ext4)
+# Instalar extundelete
+sudo apt install extundelete -y
+
+# IMPORTANTE: Desmontar partición primero (no en sistema en uso)
+# Para este ejercicio, simularemos en un archivo de prueba
+
+# Crear imagen de disco de prueba
+dd if=/dev/zero of=~/test-disk.img bs=1M count=100
+mkfs.ext4 ~/test-disk.img
+
+# Montar imagen
+mkdir -p ~/test-mount
+sudo mount -o loop ~/test-disk.img ~/test-mount
+
+# Crear archivos de prueba en la imagen
+sudo cp documento1.txt ~/test-mount/ 2>/dev/null || echo "Archivo ya eliminado"
+echo "Archivo de prueba para recuperación" | sudo tee ~/test-mount/prueba-recovery.txt
+
+# Desmontar
+sudo umount ~/test-mount
+
+# Volver a montar y eliminar archivo
+sudo mount -o loop ~/test-disk.img ~/test-mount
+sudo rm ~/test-mount/prueba-recovery.txt
+sudo umount ~/test-mount
+
+# Intentar recuperar
+sudo extundelete ~/test-disk.img --restore-all
+
+# Los archivos recuperados estarán en RECOVERED_FILES/
+
+# 3. Documentar proceso
+tee ~/recovery-test/recovery-report.txt << EOF
+=== Reporte de Recuperación de Archivos ===
+Fecha: $(date)
+
+Archivos originales:
+$(cat checksums-originales.md5 2>/dev/null || echo "No disponibles")
+
+Archivos eliminados:
+- documento1.txt
+- documento2.txt
+- ventas.csv
+- imagen.jpg
+
+Herramientas utilizadas:
+- PhotoRec
+- Extundelete
+
+Resultados:
+- Archivos recuperados: $(find ~/recovery-output -type f 2>/dev/null | wc -l)
+- Ubicación: ~/recovery-output
+
+Limitaciones encontradas:
+- La recuperación es más exitosa si se actúa rápidamente
+- Los archivos pueden perder sus nombres originales
+- No todos los archivos se recuperan completamente
+- Sobrescritura reduce posibilidades de recuperación
+
+Recomendaciones:
+1. Implementar copias de seguridad regulares
+2. Habilitar papelera de reciclaje
+3. Usar snapshots del sistema de archivos
+4. Capacitar usuarios sobre prevención
+EOF
+
+cat ~/recovery-test/recovery-report.txt
+
+# 4. Medidas preventivas
+# A) Configurar papelera de reciclaje personalizada
+mkdir -p ~/.trash
+
+# Crear alias para "rm seguro"
+tee -a ~/.bashrc << 'EOF'
+# Alias para rm seguro (mover a papelera en lugar de eliminar)
+alias rm='mv -t ~/.trash'
+alias rm-real='/bin/rm'  # Para eliminación real
+alias trash-list='ls -la ~/.trash'
+alias trash-empty='rm-real -rf ~/.trash/* && echo "Papelera vaciada"'
+alias trash-restore='mv ~/.trash/* .'
+EOF
+
+source ~/.bashrc
+
+# B) Script de limpieza automática de papelera
+sudo tee /usr/local/bin/clean-trash.sh << 'EOF'
+#!/bin/bash
+# Limpiar archivos en papelera más antiguos de 30 días
+find ~/.trash -type f -mtime +30 -delete
+echo "Papelera limpiada: archivos > 30 días eliminados"
+EOF
+
+sudo chmod +x /usr/local/bin/clean-trash.sh
+
+# Programar limpieza semanal
+echo "0 0 * * 0 $USER /usr/local/bin/clean-trash.sh" >> ~/.crontab
+
+# C) Implementar snapshots con rsync
+sudo tee /usr/local/bin/snapshot-home.sh << 'EOF'
+#!/bin/bash
+SNAPSHOT_DIR="/backup/snapshots"
+FECHA=$(date +%Y%m%d_%H%M%S)
+
+mkdir -p $SNAPSHOT_DIR
+
+# Crear snapshot
+rsync -av --link-dest=$SNAPSHOT_DIR/latest \
+    /home/ $SNAPSHOT_DIR/snapshot-$FECHA/
+
+# Actualizar enlace a último snapshot
+rm -f $SNAPSHOT_DIR/latest
+ln -s $SNAPSHOT_DIR/snapshot-$FECHA $SNAPSHOT_DIR/latest
+
+# Eliminar snapshots antiguos (más de 7 días)
+find $SNAPSHOT_DIR -maxdepth 1 -name "snapshot-*" -mtime +7 -exec rm -rf {} \;
+EOF
+
+sudo chmod +x /usr/local/bin/snapshot-home.sh
+```
+
+**En Windows (Recuva):**
+
+```powershell
+# Conectar a Windows Client
+# Descargar e instalar Recuva
+
+# Crear archivos de prueba
+New-Item -Path "C:\Test-Recovery" -ItemType Directory -Force
+"Documento 1" | Out-File "C:\Test-Recovery\doc1.txt"
+"Documento 2" | Out-File "C:\Test-Recovery\doc2.txt"
+
+# Eliminar archivos
+Remove-Item "C:\Test-Recovery\doc1.txt" -Force
+Remove-Item "C:\Test-Recovery\doc2.txt" -Force
+
+# Usar Recuva (GUI o CLI)
+# CLI (si está instalado):
+# recuva /deep /drive:C: /output:recovery-report.txt
+
+# Habilitar Shadow Copies (Versiones anteriores)
+vssadmin list shadows
+
+# Crear Shadow Copy manual
+wmic shadowcopy call create Volume='C:\'
+
+# Restaurar desde Shadow Copy (si existe)
+# Click derecho en carpeta → Propiedades → Versiones anteriores
+```
+
+**Conclusiones:**
+- La recuperación depende de actuar rápidamente
+- Implementar medidas preventivas es crucial
+- Las copias de seguridad son la mejor protección
+
+</details>
+
+---
+
+## Trabajo Práctico en Grupo (3 personas)
+
+### Implementación de Sistema Integral de Seguridad
+
+**Descripción:**  
+Este trabajo consiste en diseñar e implementar un sistema completo de seguridad para una pequeña empresa ficticia, integrando protección contra malware, gestión de actualizaciones, monitoreo de integridad, análisis de logs y plan de contingencia. El trabajo se realizará en grupos de 3 personas y deberá utilizar las máquinas virtuales del laboratorio SAD.
+
+**Escenario:**  
+La empresa "TechSecure Solutions" tiene una pequeña infraestructura IT con:
+- 1 servidor Ubuntu (servidor web y base de datos)
+- 1 servidor Windows (controlador de dominio y archivos compartidos)
+- 1 servidor de backups (Storage Backup)
+- Estaciones de trabajo Windows para usuarios
+
+Recientemente han sufrido intentos de intrusión y necesitan implementar un sistema de seguridad robusto.
+
+**Máquinas a utilizar:**
+- **Ubuntu Server** (192.168.56.10) - Servidor de producción
+- **Windows Server** (192.168.56.11) - Servidor de archivos y servicios
+- **Storage Backup** (192.168.56.13) - Servidor de backups y logs centralizados
+- **Windows Client** (192.168.56.12) - Estación de trabajo de usuario
+- **Kali Security** (192.168.56.20) - Para pruebas de seguridad y simulación de ataques
+
+**Distribución de tareas por miembro del grupo:**
+
+**Miembro 1 - Especialista en Protección contra Malware:**
+1. Implementar soluciones antivirus/antimalware en todos los sistemas
+   - ClamAV en Ubuntu Server
+   - Windows Defender configurado en Windows Server y Client
+   - Configurar escaneos automáticos programados
+2. Configurar fail2ban en Ubuntu Server para protección contra fuerza bruta
+3. Implementar políticas de verificación de software:
+   - Script de verificación de checksums
+   - Documentar proceso de instalación segura de aplicaciones
+   - Lista blanca de software autorizado
+4. Realizar pruebas de detección:
+   - Descargar archivos de prueba EICAR
+   - Documentar capacidad de detección de las soluciones
+   - Simular diferentes vectores de ataque
+
+**Miembro 2 - Especialista en Gestión de Seguridad:**
+1. Implementar sistema de gestión de actualizaciones:
+   - Configurar actualizaciones automáticas en Ubuntu Server
+   - Configurar WSUS o actualizaciones programadas en Windows Server
+   - Crear política de gestión de parches
+   - Documentar ventanas de mantenimiento
+2. Implementar sistema de verificación de integridad:
+   - Configurar AIDE en Ubuntu Server
+   - Implementar File Integrity Monitoring en Windows
+   - Programar verificaciones automáticas
+   - Crear procedimiento de gestión de cambios
+3. Configurar sistema centralizado de logs:
+   - Configurar rsyslog en Storage Backup como servidor central
+   - Configurar clientes para enviar logs
+   - Implementar análisis con Logwatch
+   - Crear dashboards de monitoreo
+
+**Miembro 3 - Especialista en Recuperación y Contingencia:**
+1. Implementar sistema de backups:
+   - Configurar backups automáticos de Ubuntu Server hacia Storage Backup
+   - Configurar backups de Windows Server
+   - Implementar esquema de rotación (GFS simplificado)
+   - Realizar pruebas de restauración
+2. Configurar herramientas de recuperación:
+   - Instalar y configurar herramientas de recuperación de datos
+   - Crear procedimientos de recuperación documentados
+   - Realizar simulacros de recuperación
+3. Desarrollar plan de contingencia:
+   - Documentar procedimiento de respuesta a incidentes
+   - Crear checklist de recuperación ante desastres
+   - Definir roles y responsabilidades
+   - Documentar contactos de emergencia y escalamiento
+
+**Requisitos generales del trabajo:**
+
+1. **Documentación técnica completa (formato PDF o Markdown):**
+   - Diagrama de la infraestructura implementada
+   - Configuración detallada de cada componente
+   - Scripts desarrollados (comentados)
+   - Procedimientos paso a paso
+   - Políticas de seguridad definidas
+   - Mínimo 25 páginas (sin contar capturas de pantalla)
+
+2. **Evidencias de implementación:**
+   - Capturas de pantalla de todas las configuraciones
+   - Logs de pruebas realizadas
+   - Resultados de simulacros
+   - Videos cortos (opcional) mostrando funcionalidad
+
+3. **Scripts y archivos de configuración:**
+   - Todos los scripts desarrollados
+   - Archivos de configuración modificados
+   - Comentarios extensos en el código
+   - README con instrucciones de uso
+
+4. **Plan de contingencia completo:**
+   - Análisis de riesgos específico para TechSecure
+   - Procedimientos de respuesta a incidentes
+   - Matriz de escalamiento
+   - Plantillas de informes de incidentes
+   - Checklist de recuperación
+
+5. **Presentación ejecutiva (PowerPoint/PDF):**
+   - Resumen del proyecto (15-20 diapositivas)
+   - Arquitectura implementada
+   - Demostración de funcionalidades clave
+   - Costos estimados (licencias, hardware, horas/hombre)
+   - Recomendaciones para mejora continua
+   - Preparada para presentación de 20-30 minutos
+
+6. **Pruebas y validación:**
+   - Realizar simulacro completo de incidente:
+     * Simular ataque de fuerza bruta (desde Kali)
+     * Verificar detección y bloqueo automático
+     * Documentar respuesta del sistema
+     * Probar procedimientos de recuperación
+   - Realizar prueba de recuperación completa:
+     * Simular fallo de sistema
+     * Ejecutar procedimiento de recuperación
+     * Medir tiempos de recuperación (RTO real)
+     * Documentar lecciones aprendidas
+
+**Entregables:**
+
+1. **Documentación Técnica Principal:**
+   - Documento maestro con toda la implementación
+   - Incluir tabla de contenidos y referencias
+   - Formato profesional con índice de figuras
+
+2. **Repositorio de Scripts:**
+   - Carpeta organizada con todos los scripts
+   - README explicativo de cada script
+   - Instrucciones de instalación y uso
+
+3. **Plan de Contingencia:**
+   - Documento independiente del plan DRP
+   - Procedimientos detallados
+   - Plantillas y formularios
+
+4. **Presentación Ejecutiva:**
+   - Slides profesionales
+   - Incluir demostración práctica
+   - Presupuesto y ROI
+
+5. **Informe de Pruebas:**
+   - Documento con resultados de todas las pruebas
+   - Métricas obtenidas (RTO, RPO, etc.)
+   - Problemas encontrados y soluciones
+   - Recomendaciones de mejora
+
+**Criterios de evaluación:**
+
+| Criterio | Porcentaje | Descripción |
+|----------|------------|-------------|
+| **Implementación técnica** | 35% | Correcta configuración de todos los componentes |
+| **Documentación** | 25% | Claridad, completitud y profesionalismo |
+| **Scripts y automatización** | 15% | Calidad del código, comentarios, funcionalidad |
+| **Pruebas y validación** | 15% | Realización y documentación de pruebas |
+| **Presentación** | 10% | Calidad de la presentación y defensa oral |
+
+**Rúbrica detallada:**
+
+**Excelente (9-10):**
+- Todos los componentes funcionan perfectamente
+- Documentación exhaustiva y profesional
+- Scripts bien estructurados y comentados
+- Pruebas completas con métricas documentadas
+- Presentación clara y convincente
+
+**Notable (7-8):**
+- La mayoría de componentes funcionan correctamente
+- Documentación completa con pequeñas omisiones
+- Scripts funcionales con comentarios básicos
+- Pruebas realizadas con documentación adecuada
+- Presentación clara
+
+**Aprobado (5-6):**
+- Componentes básicos implementados
+- Documentación mínima requerida
+- Scripts funcionales sin comentarios extensos
+- Pruebas básicas realizadas
+- Presentación suficiente
+
+**Suspenso (menor a 5):**
+- Componentes no funcionales o incompletos
+- Documentación insuficiente o poco clara
+- Scripts no funcionales o ausentes
+- Sin pruebas o mal documentadas
+- Presentación deficiente
+
+**Tiempo estimado:** 20-25 horas por grupo (divididas entre los 3 miembros)
+
+**Fecha de entrega:** [A definir por el profesor]
+
+**Formato de entrega:**
+- Comprimir todos los archivos en un archivo .zip
+- Nombre del archivo: `Grupo_X_Seguridad_Integral.zip`
+- Incluir archivo README.md con índice de contenidos
+- Subir a la plataforma especificada por el profesor
+
+:::tip Consejos para el trabajo
+**Organización:**
+- Reunirse regularmente para coordinar el trabajo
+- Usar control de versiones (Git) para colaboración
+- Documentar decisiones importantes tomadas en grupo
+- Dividir tareas pero revisar el trabajo de los demás
+
+**Técnicos:**
+- Probar cada configuración antes de integrarla
+- Mantener backups de las VMs durante el desarrollo
+- Documentar problemas encontrados y soluciones
+- Utilizar entornos de prueba antes de producción
+
+**Documentación:**
+- Escribir documentación mientras se implementa
+- Incluir diagramas y tablas para claridad
+- Revisar ortografía y gramática
+- Pedir feedback de compañeros antes de entregar
+
+**Presentación:**
+- Preparar demostración en vivo (con backup de video)
+- Ensayar la presentación varias veces
+- Preparar respuestas a preguntas frecuentes
+- Distribuir tiempo equitativamente entre miembros
+:::
+
+:::warning Importante
+- Todos los miembros del grupo deben entender y poder explicar cualquier parte del trabajo
+- La nota es grupal, pero puede individualizarse según participación
+- El plagio o copia de otros grupos resultará en suspenso automático
+- Realizar copias de seguridad frecuentes del trabajo durante el desarrollo
+- Probar todas las configuraciones antes de la presentación final
+:::
+
