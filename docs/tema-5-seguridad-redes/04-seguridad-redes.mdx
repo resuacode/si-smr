@@ -1,0 +1,90 @@
+---
+title: Seguridad en Redes Cableadas e Inalámbricas
+sidebar_position: 4
+---
+
+# Seguridad en Redes Cableadas e Inalámbricas
+
+La seguridad en la capa de acceso a la red es crítica. Si un atacante puede conectarse físicamente o por Wi-Fi a nuestra red, ha saltado la primera barrera de defensa (el firewall perimetral).
+
+En esta sección cubriremos:
+1. Seguridad en redes cableadas (evitar monitorización).
+2. Seguridad en redes inalámbricas (Protocolos WEP, WPA, WPA2, WPA3).
+
+## Seguridad en Redes Cableadas
+
+En una red cableada tradicional (Ethernet), cualquiera que conecte un cable a un switch podría tener acceso a la red. Además, técnicas como el **Sniffing** permiten capturar tráfico.
+
+### Evitar la monitorización (Sniffing)
+El sniffing consiste en capturar paquetes de red para leer información.
+- **En redes con Hubs:** El tráfico llega a todos. Es muy inseguro.
+- **En redes con Switches:** El tráfico se aísla por puertos. Sin embargo, ataques como **ARP Spoofing** permiten redirigir el tráfico para espiarlo.
+
+**Contramedidas:**
+1.  **Port Security:** Configurar el switch para que solo acepte una MAC específica en cada puerto.
+2.  **VLANs:** Segmentar la red para que departamentos distintos no se vean entre sí.
+3.  **Cifrado:** Usar siempre protocolos cifrados (HTTPS, SSH, SFTP) para que, si alguien captura el tráfico, no pueda leerlo.
+
+#### Herramientas de diagnóstico (Linux)
+
+```bash
+# Ver la tabla ARP (para detectar envenenamiento ARP)
+ip neigh show
+
+# Escuchar tráfico en mi interfaz (Sniffing defensivo/educativo)
+# Requiere wireshark o tcpdump
+sudo tcpdump -i eth0
+```
+
+## Seguridad en Redes Inalámbricas (Wi-Fi)
+
+El Wi-Fi expande la red más allá de las paredes físicas, lo que aumenta el riesgo. La seguridad depende del protocolo de cifrado utilizado.
+
+### Clasificación de Protocolos
+
+#### WEP (Wired Equivalent Privacy) - ☠️ OBSOLETO
+- El primer estándar.
+- **Muy inseguro:** Se puede crackear en minutos debido a debilidades en su algoritmo (RC4) y gestión de vectores de inicialización (IV).
+- **Nunca usar.**
+
+#### WPA (Wi-Fi Protected Access) - ⚠️ OBSOLETO
+- Solución temporal para reemplazar WEP.
+- Usa TKIP (Temporal Key Integrity Protocol).
+- Ya no se considera seguro.
+
+#### WPA2 - ✅ ESTÁNDAR ACTUAL
+- Introduce **AES** (Advanced Encryption Standard) para el cifrado, que es muy robusto.
+- **WPA2-PSK (Personal):** Usa una contraseña compartida. Vulnerable a ataques de fuerza bruta si la contraseña es débil.
+- **WPA2-Enterprise:** Usa un servidor RADIUS para autenticar a cada usuario individualmente (usuario/contraseña). Mucho más seguro.
+
+#### WPA3 - 🔒 EL FUTURO
+- Mejora la protección contra ataques de fuerza bruta (incluso con contraseñas débiles) usando el protocolo **SAE** (Simultaneous Authentication of Equals).
+- Cifrado de 192 bits en modo Enterprise.
+- **OWE (Opportunistic Wireless Encryption):** Cifra redes abiertas (públicas) sin necesidad de contraseña.
+
+### Gestión de Wi-Fi
+
+#### En Linux (nmcli)
+
+```bash
+# Escanear redes disponibles y ver su seguridad
+nmcli device wifi list
+# Fíjate en la columna SECURITY (WPA2, WEP, etc.)
+
+# Conectarse a una red
+nmcli device wifi connect "Nombre_SSID" password "MiContraseñaSegura"
+```
+
+#### En Windows (Netsh)
+
+```powershell
+# Ver perfiles de redes guardadas
+netsh wlan show profiles
+
+# Ver la contraseña de una red guardada (útil si la olvidaste)
+netsh wlan show profile name="Nombre_SSID" key=clear
+```
+
+:::tip Ocultar el SSID
+Ocultar el nombre de la red (SSID Hiding) **no es una medida de seguridad**. Las herramientas de escaneo pueden descubrir el nombre de la red en cuanto un dispositivo legítimo intenta conectarse. Usa WPA2/WPA3 con una contraseña fuerte.
+:::

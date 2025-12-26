@@ -1,0 +1,94 @@
+---
+title: Vulnerabilidades y Amenazas en Redes
+sidebar_position: 3
+---
+
+# Vulnerabilidades y Amenazas en Redes
+
+Las redes son el principal vector de ataque hoy en día. Conocer qué servicios exponemos y cómo los atacantes intentan engañarnos es vital para la defensa.
+
+En esta sección cubriremos:
+1. Inventario y control de servicios de red.
+2. Ingeniería social (Phishing).
+3. Amenazas web y Spam.
+
+## Inventario y Control de Servicios de Red
+
+"No puedes proteger lo que no sabes que tienes". El primer paso en seguridad de redes es saber qué puertos están abiertos y qué servicios están escuchando.
+
+### Escaneo de Puertos y Servicios
+
+#### En Linux (Nmap y Netstat)
+**Nmap** es la herramienta estándar para auditoría de redes.
+
+```bash
+# Escanear puertos abiertos en una IP objetivo
+nmap -sV 192.168.1.10
+# -sV intenta determinar la versión del servicio
+
+# Ver puertos escuchando en mi propia máquina (local)
+sudo ss -tulpn
+# o
+sudo netstat -tulpn
+```
+
+#### En Windows (PowerShell)
+Podemos usar cmdlets nativos para ver conexiones y puertos.
+
+```powershell
+# Ver conexiones TCP activas y puertos de escucha
+Get-NetTCPConnection | Where-Object State -eq Listen
+
+# Testear si un puerto remoto está abierto
+Test-NetConnection -ComputerName 192.168.1.10 -Port 80
+```
+
+:::tip Principio de Mínimo Privilegio en Red
+Si un servicio no es necesario, **apágalo**. Cada puerto abierto es una posible puerta de entrada para un atacante.
+`sudo systemctl stop servicio` en Linux o `Stop-Service` en Windows.
+:::
+
+## Ingeniería Social y Phishing
+
+La ingeniería social ataca al humano, no a la máquina. Busca manipular a las personas para que revelen información confidencial.
+
+### Phishing
+Envío de correos fraudulentos que suplantan la identidad de empresas legítimas (bancos, servicios) para robar credenciales.
+
+**Indicadores de Phishing:**
+- Urgencia ("¡Su cuenta será bloqueada en 24h!").
+- Remitente sospechoso (ej. `soporte@paypal-security-alert.com` en lugar de `paypal.com`).
+- Enlaces que no coinciden con el texto (pasa el ratón por encima sin hacer clic).
+- Errores gramaticales.
+
+### Malware Web
+Sitios web legítimos comprometidos o sitios maliciosos creados para infectar al visitante (Drive-by download).
+
+**Medidas de protección:**
+- Mantener el navegador actualizado.
+- Usar bloqueadores de publicidad (uBlock Origin) y scripts.
+- No descargar software de fuentes no oficiales.
+
+## Spam y Correo No Deseado
+
+El spam no es solo molesto; es el principal vehículo de distribución de malware y phishing.
+
+### Reducción del tráfico de Spam
+A nivel de servidor de correo, se utilizan técnicas para filtrar spam antes de que llegue al usuario:
+
+1.  **Listas Negras (RBL):** Bloquear IPs conocidas por enviar spam.
+2.  **SPF (Sender Policy Framework):** Registro DNS que dice qué IPs pueden enviar correo a nombre de tu dominio.
+3.  **DKIM (DomainKeys Identified Mail):** Firma digital en los correos para verificar que no han sido modificados.
+4.  **DMARC:** Política que une SPF y DKIM.
+
+#### Verificación de registros DNS (Linux/Windows)
+
+```bash
+# Consultar registro SPF de un dominio (ej. gmail.com)
+nslookup -type=TXT gmail.com
+# Busca la línea que empieza por "v=spf1..."
+```
+
+:::tip Análisis de Cabeceras
+Si recibes un correo sospechoso, analiza las **cabeceras (headers)**. Busca el campo `Received-SPF` o `Authentication-Results` para ver si el correo pasó las verificaciones de seguridad del servidor.
+:::

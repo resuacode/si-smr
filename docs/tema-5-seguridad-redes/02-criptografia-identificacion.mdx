@@ -1,0 +1,108 @@
+---
+title: Criptografía e Identificación Digital
+sidebar_position: 2
+---
+
+# Criptografía e Identificación Digital
+
+La criptografía es la base de la seguridad en las comunicaciones modernas. Permite proteger la confidencialidad, integridad y autenticidad de la información tanto en reposo (almacenada) como en tránsito (redes).
+
+En esta sección cubriremos:
+1. Técnicas criptográficas (Simétrica y Asimétrica).
+2. Fundamentos de protocolos seguros (Clave pública/privada).
+3. Sistemas de identificación digital (Firma y Certificados).
+
+## Técnicas Criptográficas
+
+### Cifrado Simétrico
+Utiliza la **misma clave** tanto para cifrar como para descifrar la información. Es muy rápido y eficiente para grandes volúmenes de datos, pero tiene el problema de la distribución segura de la clave.
+- **Algoritmos comunes:** AES (Advanced Encryption Standard), DES (obsoleto), 3DES.
+
+#### Ejemplo Práctico: Cifrado de archivos con GPG (Simétrico)
+
+**En Linux:**
+```bash
+# Cifrar un archivo con contraseña (cifrado simétrico)
+gpg -c archivo_secreto.txt
+# Esto genera archivo_secreto.txt.gpg
+
+# Descifrar
+gpg -d archivo_secreto.txt.gpg > archivo_descifrado.txt
+```
+
+**En Windows (PowerShell con módulo Gpg4win o similar):**
+Si tienes GPG instalado en Windows, los comandos son idénticos. Alternativamente, Windows usa BitLocker para cifrado de disco, pero para archivos individuales se suelen usar herramientas de terceros o scripts.
+
+### Cifrado Asimétrico
+Utiliza un **par de claves**: una **pública** (que se comparte con todos) y una **privada** (que se mantiene secreta).
+- Lo que se cifra con la clave pública, solo se puede descifrar con la clave privada.
+- Lo que se cifra con la clave privada (firma), se puede verificar con la clave pública.
+- **Algoritmos comunes:** RSA, ECC (Curva Elíptica).
+
+#### Ejemplo Práctico: Generación de claves SSH (Asimétrico)
+
+**En Linux y Windows (PowerShell):**
+El protocolo SSH utiliza criptografía asimétrica para la autenticación.
+
+```bash
+# Generar un par de claves RSA de 4096 bits
+ssh-keygen -t rsa -b 4096 -C "mi_email@ejemplo.com"
+
+# Ver la clave pública (segura para compartir)
+cat ~/.ssh/id_rsa.pub
+
+# La clave privada (id_rsa) NUNCA debe compartirse
+```
+
+:::tip Clave Pública vs Privada
+Imagina un buzón de correos.
+- **Clave Pública:** Es la ranura del buzón. Cualquiera puede echar una carta (cifrar).
+- **Clave Privada:** Es la llave del buzón. Solo el dueño puede abrirlo y leer las cartas (descifrar).
+:::
+
+## Sistemas de Identificación Digital
+
+### Firma Electrónica
+La firma electrónica garantiza la **autenticidad** (quién lo envió), la **integridad** (no fue modificado) y el **no repudio** (el emisor no puede negar haberlo enviado). Se crea aplicando un hash al documento y cifrando ese hash con la clave privada del emisor.
+
+#### Ejemplo Práctico: Firmar un archivo con GPG
+
+**En Linux:**
+```bash
+# Crear una firma digital (en un archivo separado .sig)
+gpg --output documento.sig --detach-sig documento.pdf
+
+# Verificar la firma (necesitas la clave pública del firmante)
+gpg --verify documento.sig documento.pdf
+```
+
+### Certificado Digital
+Un certificado digital es un documento electrónico que vincula una clave pública con la identidad de una persona o entidad (como un DNI digital). Está firmado por una **Autoridad de Certificación (CA)** de confianza.
+
+- **Contenido:** Nombre del titular, clave pública, fecha de expiración, firma de la CA.
+- **Uso:** HTTPS (SSL/TLS), firma de correos (S/MIME), autenticación en administración pública.
+
+#### Gestión de Certificados
+
+**En Linux (OpenSSL):**
+Podemos inspeccionar certificados de sitios web o locales.
+
+```bash
+# Ver detalles de un certificado de un sitio web (ej. google.com)
+echo | openssl s_client -showcerts -servername google.com -connect google.com:443 2>/dev/null | openssl x509 -inform pem -noout -text
+```
+
+**En Windows (PowerShell):**
+Windows tiene un almacén de certificados integrado.
+
+```powershell
+# Listar certificados personales instalados
+Get-ChildItem Cert:\CurrentUser\My
+
+# Buscar certificados que expiran pronto (ej. en menos de 30 días)
+Get-ChildItem Cert:\CurrentUser\My -Recurse | Where-Object { $_.NotAfter -lt (Get-Date).AddDays(30) }
+```
+
+:::tip HTTPS y el Candado
+Cuando ves el candado en el navegador, significa que el servidor ha presentado un certificado digital válido y la comunicación está cifrada. Si el certificado estuviera caducado o fuera autofirmado (sin respaldo de una CA), el navegador mostraría una advertencia de seguridad.
+:::

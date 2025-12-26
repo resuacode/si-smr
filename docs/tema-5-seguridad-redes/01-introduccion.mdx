@@ -39,3 +39,170 @@ En este tema aprenderemos a identificar vulnerabilidades en redes informáticas,
 4. Utilización de Devasas (Firewalls)
    - Instalación y configuración de firewalls en equipamiento o servidores
    - Análisis de los registros (logs) de un sistema para identificar ataques reales o potenciales
+
+## Ejercicios Prácticos
+
+A continuación se presentan ejercicios prácticos para aplicar los conocimientos adquiridos en este tema. Utiliza las máquinas virtuales del laboratorio para realizarlos.
+
+:::info Máquinas del Laboratorio
+Para estos ejercicios utilizarás las siguientes máquinas virtuales:
+- **Ubuntu Server** (192.168.56.10) - admin/adminSAD2024!
+- **Windows Client** (192.168.56.12) - cliente/User123!
+- **Kali Security** (192.168.56.20) - kali/kali (Opcional para escaneos)
+:::
+
+### Ejercicio 1: Cifrado asimétrico con GPG
+
+**Objetivo:** Simular una comunicación segura intercambiando mensajes cifrados.
+
+**Tareas:**
+1. Genera un par de claves GPG en Ubuntu Server.
+2. Exporta tu clave pública a un archivo.
+3. Cifra un mensaje de texto usando tu propia clave pública (simulando que alguien te lo envía).
+4. Descifra el mensaje con tu clave privada.
+
+<details>
+<summary>Ver solución</summary>
+
+```bash
+# 1. Generar claves (acepta los valores por defecto)
+gpg --full-generate-key
+
+# 2. Exportar clave pública
+gpg --output mi_clave.pub --armor --export admin@localhost
+
+# 3. Cifrar mensaje
+echo "Este es un mensaje secreto" > mensaje.txt
+# Ciframos para nosotros mismos (usando el ID o email de la clave generada)
+gpg --encrypt --recipient admin@localhost --armor --output mensaje.enc mensaje.txt
+
+# Ver que el contenido es ilegible
+cat mensaje.enc
+
+# 4. Descifrar mensaje
+gpg --decrypt mensaje.enc
+```
+</details>
+
+---
+
+### Ejercicio 2: Auditoría de puertos con Nmap
+
+**Objetivo:** Identificar qué servicios está exponiendo el servidor Ubuntu desde la máquina Windows o Kali.
+
+**Tareas:**
+1. Asegúrate de que Ubuntu Server tiene algún servicio corriendo (ej. SSH).
+2. Desde otra máquina, lanza un escaneo de puertos contra la IP de Ubuntu.
+3. Identifica qué puertos están abiertos y qué versión del servicio corre.
+
+<details>
+<summary>Ver solución</summary>
+
+```bash
+# Desde Kali Linux (o Windows si tienes nmap instalado)
+# Escaneo básico
+nmap 192.168.56.10
+
+# Escaneo de versiones (-sV)
+nmap -sV 192.168.56.10
+
+# Resultado esperado:
+# PORT   STATE SERVICE VERSION
+# 22/tcp open  ssh     OpenSSH 8.2p1...
+```
+</details>
+
+---
+
+### Ejercicio 3: Configuración de Firewall UFW
+
+**Objetivo:** Proteger el servidor Ubuntu permitiendo solo tráfico SSH y Web.
+
+**Tareas:**
+1. Activa el firewall UFW.
+2. Configura una política por defecto restrictiva (denegar entrada).
+3. Permite el tráfico SSH (puerto 22) y HTTP (puerto 80).
+4. Verifica el estado y comprueba que no puedes hacer ping (si no lo permitiste explícitamente).
+
+<details>
+<summary>Ver solución</summary>
+
+```bash
+# 1. Asegurar SSH antes de activar (para no bloquearnos)
+sudo ufw allow ssh
+
+# 2. Activar firewall
+sudo ufw enable
+
+# 3. Configurar reglas
+sudo ufw default deny incoming
+sudo ufw default allow outgoing
+sudo ufw allow 80/tcp
+
+# 4. Verificar estado
+sudo ufw status verbose
+
+# Prueba de ping desde otra máquina (debería fallar si no permitiste icmp)
+# ping 192.168.56.10
+```
+</details>
+
+---
+
+### Ejercicio 4: Reglas de Firewall en Windows con PowerShell
+
+**Objetivo:** Bloquear el acceso a internet a una aplicación específica (ej. Notepad).
+
+**Tareas:**
+1. Abre PowerShell como administrador.
+2. Crea una regla de salida que bloquee la conexión para `notepad.exe`.
+3. Verifica que la regla se ha creado correctamente.
+
+<details>
+<summary>Ver solución</summary>
+
+```powershell
+# 1. Crear regla de bloqueo
+New-NetFirewallRule -DisplayName "Bloquear Notepad" `
+                    -Direction Outbound `
+                    -Program "C:\Windows\System32\notepad.exe" `
+                    -Action Block
+
+# 2. Verificar regla
+Get-NetFirewallRule -DisplayName "Bloquear Notepad"
+
+# Para borrar la regla después de la prueba:
+# Remove-NetFirewallRule -DisplayName "Bloquear Notepad"
+```
+</details>
+
+## Proyecto Final en Grupo
+
+### Diseño y Securización de una Red Corporativa
+
+**Descripción:**
+Vuestro equipo ha sido contratado para asegurar la infraestructura de red de una pequeña empresa ("TechSolutions S.L."). La empresa cuenta con un servidor Linux (Web y Archivos) y varios clientes Windows.
+
+**Requisitos del Proyecto:**
+
+1.  **Análisis de Vulnerabilidades:**
+    *   Realizar un escaneo de la red actual para identificar puertos abiertos y servicios innecesarios.
+    *   Documentar las amenazas encontradas.
+
+2.  **Hacking Ético (Simulación):**
+    *   Demostrar cómo un atacante podría interceptar tráfico no cifrado (ej. usando Wireshark en una red simulada sin cifrar o capturando tráfico HTTP).
+
+3.  **Implementación de Defensa (Hardening):**
+    *   **Linux:** Configurar `UFW` para permitir SOLO los servicios necesarios (SSH, HTTP). Configurar `Fail2Ban` para proteger SSH de fuerza bruta.
+    *   **Windows:** Configurar el Firewall de Windows para bloquear tráfico sospechoso y permitir RDP solo desde la IP del administrador.
+    *   **Cifrado:** Generar claves SSH para acceso sin contraseña al servidor y deshabilitar el acceso por contraseña en `/etc/ssh/sshd_config`.
+
+4.  **Documentación:**
+    *   Entregar un informe técnico detallando:
+        *   Estado inicial (vulnerabilidades).
+        *   Medidas aplicadas (con capturas de pantalla de las configuraciones).
+        *   Pruebas de funcionamiento (demostrar que el firewall bloquea y que el acceso legítimo funciona).
+
+**Entrega:**
+*   Informe en PDF.
+*   Presentación de 10 minutos defendiendo la solución adoptada.

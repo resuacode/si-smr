@@ -1,0 +1,109 @@
+---
+title: Utilización de Cortafuegos (Firewalls)
+sidebar_position: 5
+---
+
+# Utilización de Cortafuegos (Firewalls)
+
+Un cortafuegos o firewall es un dispositivo de seguridad de la red que monitorea y controla el tráfico de red entrante y saliente basándose en reglas de seguridad preestablecidas. Es la barrera entre tu red interna segura y redes externas no confiables (Internet).
+
+En esta sección cubriremos:
+1. Instalación y configuración de firewalls (Linux/Windows).
+2. Análisis de registros (logs).
+
+## Tipos de Firewalls
+- **De Red (Hardware/Appliance):** Protegen toda la red (ej. Cisco ASA, Fortinet, pfSense).
+- **De Host (Software):** Protegen un único equipo (ej. iptables, Windows Defender Firewall).
+
+## Configuración de Firewalls de Host
+
+### En Linux: UFW (Uncomplicated Firewall)
+UFW es una interfaz simplificada para `iptables` (o `nftables`), estándar en Ubuntu.
+
+**Comandos básicos:**
+
+```bash
+# 1. Habilitar el firewall (por defecto deniega todo lo entrante)
+sudo ufw enable
+
+# 2. Permitir tráfico SSH (puerto 22) para no quedarnos fuera
+sudo ufw allow ssh
+# O especificando el puerto
+sudo ufw allow 22/tcp
+
+# 3. Permitir tráfico web (HTTP/HTTPS)
+sudo ufw allow 80/tcp
+sudo ufw allow 443/tcp
+
+# 4. Ver el estado y las reglas numeradas
+sudo ufw status numbered
+
+# 5. Borrar una regla (por número)
+sudo ufw delete 3
+```
+
+:::tip Política por Defecto
+La mejor práctica es **"Deny All Inbound, Allow All Outbound"**. Bloquear todo lo que entra excepto lo que explícitamente permitas, y permitir que tu servidor salga a internet (para actualizaciones, etc.).
+:::
+
+### En Windows: Windows Defender Firewall
+Podemos gestionarlo gráficamente o con PowerShell (módulo `NetSecurity`).
+
+**Comandos básicos en PowerShell:**
+
+```powershell
+# Ver el estado de los perfiles (Domain, Private, Public)
+Get-NetFirewallProfile
+
+# Crear una regla para permitir tráfico web (puerto 80)
+New-NetFirewallRule -DisplayName "Permitir Web HTTP" `
+                    -Direction Inbound `
+                    -LocalPort 80 `
+                    -Protocol TCP `
+                    -Action Allow
+
+# Bloquear un programa específico
+New-NetFirewallRule -DisplayName "Bloquear Juego" `
+                    -Direction Outbound `
+                    -Program "C:\Juegos\juego.exe" `
+                    -Action Block
+```
+
+## Análisis de Registros (Logs)
+
+Los logs del firewall son esenciales para detectar escaneos de puertos, intentos de intrusión o configuraciones erróneas.
+
+### Logs en Linux (UFW)
+UFW registra en `/var/log/ufw.log` (o en syslog/kern.log).
+
+```bash
+# Activar logging (niveles: low, medium, high)
+sudo ufw logging on
+sudo ufw logging medium
+
+# Ver los últimos bloqueos en tiempo real
+tail -f /var/log/ufw.log
+```
+
+**Interpretación de un log de UFW:**
+`[UFW BLOCK] IN=eth0 OUT= MAC=... SRC=192.168.1.50 DST=192.168.1.10 PROTO=TCP SPT=44332 DPT=22`
+- **BLOCK:** El paquete fue bloqueado.
+- **SRC:** IP de origen (quién intenta entrar).
+- **DPT:** Puerto de destino (a qué servicio atacan, ej. 22 SSH).
+
+### Logs en Windows
+Por defecto, el log de firewall suele estar desactivado o en una ruta específica.
+
+```powershell
+# Ver configuración de logs
+Get-NetFirewallProfile | Select-Object Name, LogFileName
+
+# Los logs suelen estar en:
+# %systemroot%\system32\LogFiles\Firewall\pfirewall.log
+```
+
+Para analizarlo, es mejor abrirlo con un editor de texto o importarlo a Excel, ya que es un archivo de texto estructurado.
+
+:::tip Análisis Automatizado
+Revisar logs manualmente es tedioso. En entornos profesionales se usan sistemas **SIEM** (Security Information and Event Management) o herramientas como **Fail2Ban** en Linux, que lee los logs y banea automáticamente las IPs que fallan muchos intentos de login.
+:::
