@@ -69,6 +69,7 @@ Un **virus informático** es un programa malicioso que se replica insertando cop
 | **ILOVEYOU** | 2000 | Sobrescribía archivos, 10 millones de ordenadores |
 | **Code Red** | 2001 | Atacó servidores IIS, 359.000 sistemas afectados |
 | **Conficker** | 2008 | Red de bots masiva, millones de sistemas |
+| **CIH (Chernobyl)** | 1998 | Sobrescribía la BIOS, dejando el equipo inutilizable |
 
 #### Síntomas de infección por virus
 
@@ -99,7 +100,7 @@ Los **troyanos** (o caballos de Troya) son programas que aparentan ser legítimo
 
 **Troyanos bancarios:**
 - Roban credenciales de banca online
-- Ejemplos: Zeus, SpyEye, Dridex
+- Ejemplos: Zeus, SpyEye, Dridex, **Emotet**
 - Técnicas: inyección web, man-in-the-browser
 
 **Troyanos descargadores (Droppers):**
@@ -207,6 +208,11 @@ tar -czf /backup/critical-$(date +%Y%m%d).tar.gz /datos/critical/
 sha256sum /backup/critical-*.tar.gz > checksums.txt
 ```
 
+:::tip Protección contra Ransomware en Windows
+Windows Defender incluye una función llamada **"Acceso controlado a carpetas"**. Puedes activarla para impedir que aplicaciones no autorizadas modifiquen archivos en tus carpetas de documentos importantes.
+`Set-MpPreference -EnableControlledFolderAccess Enabled`
+:::
+
 **Restricción de permisos:**
 ```bash
 # Limitar permisos de escritura
@@ -238,6 +244,11 @@ El **spyware** es software que recopila información del usuario sin su conocimi
 - Registran todas las pulsaciones del teclado
 - Capturan contraseñas, números de tarjetas
 - Pueden ser software o hardware
+
+**Spyware móvil:**
+- Diseñado para smartphones (iOS/Android)
+- Ejemplo: **Pegasus** (vigilancia avanzada)
+- Acceso a cámara, micrófono, mensajes cifrados
 
 **Adware espía:**
 - Rastrea hábitos de navegación
@@ -644,6 +655,14 @@ if ($hash.Hash -eq "HASH_ESPERADO") {
 } else {
     Write-Host "✗ Hash no coincide" -ForegroundColor Red
 }
+```
+
+:::tip ¿Por qué cambian los hashes?
+Si el hash de un archivo descargado no coincide con el oficial, puede deberse a:
+1. Una descarga incompleta o corrupta.
+2. El archivo ha sido modificado por un atacante (Man-in-the-Middle o servidor comprometido).
+**Nunca ejecutes un archivo cuyo hash no coincida.**
+:::
 
 # Certificado de múltiples archivos
 Get-ChildItem *.exe | Get-FileHash -Algorithm SHA256 | Export-Csv hashes.csv

@@ -1072,6 +1072,27 @@ wmic shadowcopy call create Volume='C:\'
 
 ---
 
+## Retos Individuales
+
+### Reto 1: Script de Hardening y Monitorización
+
+Crea un script en Bash para Linux que realice las siguientes tareas de seguridad automáticamente:
+1.  Actualice la lista de paquetes y el sistema.
+2.  Instale `clamav` y `ufw` (firewall) si no están instalados.
+3.  Active el firewall permitiendo solo SSH (puerto 22).
+4.  Realice un escaneo rápido de virus en el directorio `/home`.
+5.  Guarde un reporte con la fecha y los resultados en `/var/log/security_audit.log`.
+
+### Reto 2: Simulacro de Incidente y Recuperación
+
+Simula un escenario de pérdida de datos en Windows:
+1.  Crea varios archivos importantes en una carpeta.
+2.  Borra accidentalmente esos archivos (o usa un script que los borre).
+3.  Utiliza una herramienta de recuperación (como Windows File Recovery o Recuva portable) o Restaura una versión anterior si tenías Shadow Copies activas.
+4.  Documenta el proceso: ¿Qué archivos se recuperaron? ¿Cuáles se corrompieron?
+
+---
+
 ## Trabajo Práctico en Grupo (3 personas)
 
 ### Implementación de Sistema Integral de Seguridad
